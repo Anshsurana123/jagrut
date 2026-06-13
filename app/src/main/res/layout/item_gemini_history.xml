@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_margin="8dp"
+    android:background="@drawable/glass_card">
+
+    <!-- Query and Action Type Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/txtQuery"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Query: take a photo"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/txtActionType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SHELL_COMMAND"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="@color/brand_secondary"
+            android:background="#2206B6D4"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <!-- Time stamp and latency -->
+    <TextView
+        android:id="@+id/txtTimestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="June 13, 22:15"
+        android:textSize="11sp"
+        android:textColor="@color/text_secondary"
+        android:layout_marginTop="4dp" />
+
+    <!-- Intent Description -->
+    <TextView
+        android:id="@+id/txtIntentDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Intent: Clicking the shutter button to take a picture"
+        android:textSize="13sp"
+        android:textColor="@color/text_primary"
+        android:textStyle="italic"
+        android:layout_marginTop="8dp" />
+
+    <!-- Steps or Compiled Payload Details Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp"
+        android:padding="8dp"
+        android:background="#11FFFFFF">
+
+        <TextView
+            android:id="@+id/txtDetailsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Execution Steps / Payload:"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/txtPayloadDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No steps"
+            android:textSize="12sp"
+            android:textColor="@color/text_primary"
+            android:fontFamily="monospace" />
+    </LinearLayout>
+
+</LinearLayout>

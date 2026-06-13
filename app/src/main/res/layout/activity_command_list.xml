@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Voice Commands Cheat Sheet"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:textColor="?android:attr/textColorPrimary"/>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Category: Language -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🌐 Language Switching (भाषा बदलना)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Switch to English / Angreji mein bolo\n• Switch to Hindi / Hindi mein bolo / Hindi karo"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Category: Flashlight -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔦 Flashlight Control (टॉर्च)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Flashlight on / Torch jalao / Light on karo\n• Flashlight off / Torch band karo / Light off karo"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Category: Volume -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔊 Volume &amp; Mute (आवाज़)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Volume up / Awaaz badhao\n• Volume down / Awaaz kam karo\n• Volume mute / Awaaz band karo / Silent karo"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Category: Brightness -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔆 Brightness Control (चमक)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Brightness increase / Screen tej karo / Chamak badhao\n• Brightness decrease / Screen dim karo / Chamak kam karo"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Category: Calls & Messages -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📞 Calls &amp; WhatsApp (कॉल और व्हाट्सएप)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Call [Name] / [Name] ko call lagao\n• Send message to [Name] that [Message]\n• Whatsapp [Name] saying [Message] / [Name] ko whatsapp karo"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Category: Utilities -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🛠️ System Utilities (यूटिलिटीज)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Take screenshot / Screenshot lo\n• Lock device / Phone lock karo\n• Battery check / Battery kitni hai / Charge kitna hai\n• Set alarm at [Time] / Alarm lagao [Time] baje\n• Remind me to [Task] in [Time] / [Time] baad reminder lagao"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Category: Screen Actions -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="👁️ Screen &amp; Notifications (स्क्रीन)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Read screen / Screen read karo / Screen padhao\n• Read notifications / Kya aaya / Messages padhao"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Category: Media -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎵 Media Controls (म्यूजिक)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@android:color/holo_blue_dark"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Play music / Gaana chalao / Music bajao\n• Pause / Rok do / Ruko\n• Next / Agla gaana / Next karo\n• Previous / Pichla gaana / Wapas karo"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:layout_marginBottom="24dp"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/backButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Back to Main"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"/>
+
+</LinearLayout>

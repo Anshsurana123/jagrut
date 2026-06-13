@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_dark"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Title & Header -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🗣️ JAGO ASSISTANT"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:letterSpacing="0.05" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Privacy-First Bilingual Companion"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp" />
+
+        <!-- Status Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/glass_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginTop="24dp"
+            android:gravity="center">
+
+            <com.example.jago.ui.GlowSphereView
+                android:id="@+id/glowSphereView"
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="STATUS: IDLE"
+                android:textSize="18sp"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold" />
+
+            <!-- Glow Pulse Action Button -->
+            <Button
+                android:id="@+id/actionButton"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:text="START JAGO"
+                android:backgroundTint="@color/brand_primary"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:elevation="6dp" />
+
+        </LinearLayout>
+
+        <!-- Section: Permissions Grid -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🛡️ System Permissions Status"
+            android:textSize="15sp"
+            android:textColor="@color/text_primary"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="10dp" />
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:rowCount="3"
+            android:alignmentMode="alignMargins"
+            android:columnOrderPreserved="false"
+            android:useDefaultMargins="true">
+
+            <!-- Admin Permission -->
+            <LinearLayout
+                android:id="@+id/adminButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:background="@drawable/glass_card"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:id="@+id/lblAdminStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚠️"
+                    android:textSize="18sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Device Admin"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_primary"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- Overlay Permission -->
+            <LinearLayout
+                android:id="@+id/overlayButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:background="@drawable/glass_card"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:id="@+id/lblOverlayStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚠️"
+                    android:textSize="18sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="System Overlay"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_primary"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- Brightness Permission -->
+            <LinearLayout
+                android:id="@+id/brightnessButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:background="@drawable/glass_card"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:id="@+id/lblBrightnessStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚠️"
+                    android:textSize="18sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Write Settings"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_primary"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- Custom Ringtone Upload -->
+            <LinearLayout
+                android:id="@+id/uploadRingtoneButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:background="@drawable/glass_card"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎵"
+                    android:textSize="18sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Custom Alarm"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_primary"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+        </GridLayout>
+
+        <!-- Section: Custom Voice Shortcuts & Macros -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="10dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🎙️ Recorded Voice Shortcuts"
+                android:textSize="15sp"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold" />
+
+            <!-- Add shortcut button -->
+            <Button
+                android:id="@+id/btnRecordMacro"
+                style="?android:attr/buttonStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="+ RECORD"
+                android:textSize="10sp"
+                android:backgroundTint="@color/brand_secondary"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Macro Shortcuts container -->
+        <LinearLayout
+            android:id="@+id/containerMacros"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/glass_card"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:minHeight="80dp">
+
+            <TextView
+                android:id="@+id/txtNoMacros"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No recorded voice shortcuts yet. Tap '+ RECORD' to create your first zero-API visual macro automation!"
+                android:textSize="11sp"
+                android:textColor="@color/text_secondary"
+                android:layout_gravity="center"
+                android:layout_margin="16dp"
+                android:textAlignment="center" />
+
+        </LinearLayout>
+
+        <!-- Navigation Button -->
+        <Button
+            android:id="@+id/commandsButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="View Default Voice Commands"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="#22FFFFFF"
+            android:textColor="@color/text_primary"
+            android:elevation="0dp" />
+
+        <!-- Navigation Button to Gemini Page -->
+        <Button
+            android:id="@+id/geminiButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✨ View Gemini Execution Logs"
+            android:layout_marginTop="12dp"
+            android:backgroundTint="#22FFFFFF"
+            android:textColor="@color/text_primary"
+            android:elevation="0dp" />
+
+    </LinearLayout>
+
+</ScrollView>

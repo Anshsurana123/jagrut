@@ -1,0 +1,1237 @@
+// Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago)
+package com.example.jago.service
+
+import android.app.Notification
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Intent
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.example.jago.MainActivity
+import com.example.jago.R
+import com.example.jago.logic.ActionExecutor
+import com.example.jago.logic.Command
+import com.example.jago.logic.CommandParser
+import com.example.jago.logic.CommandType
+import com.example.jago.logic.JagoTTS
+import com.example.jago.logic.TranslationClient
+import com.example.jago.service.speech.AndroidSTTAdapter
+import com.example.jago.service.speech.SarvamSTTAdapter
+import com.example.jago.service.speech.SpeechAdapter
+import kotlinx.coroutines.*
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
+
+
+class WakeWordService : Service() {
+
+    companion object {
+        var isServiceRunning = false
+        const val WAKE_WORD_ENABLED = true
+        @Volatile var instance: WakeWordService? = null
+    }
+
+    // 3-model openWakeWord / NanoWakeWord pipeline
+    private var melSession: OrtSession? = null
+    private var embeddingSession: OrtSession? = null
+    private var wakeWordSession: OrtSession? = null
+    private val ortEnv: OrtEnvironment by lazy { OrtEnvironment.getEnvironment() }
+
+    // Pipeline state
+    @Volatile private var isDetecting = false
+    private var audioRecord: AudioRecord? = null
+    private var audioThread: Thread? = null
+
+    // Rolling buffers
+    private val melFrameBuffer = ArrayDeque<FloatArray>()
+    private val embeddingBuffer = ArrayDeque<FloatArray>()
+    
+    // Score smoothing
+    private var scoreHistory = ArrayDeque<Float>()
+    private val SCORE_HISTORY_SIZE = 4   // window size for sustained detection
+    private val RAW_SCORE_THRESHOLD = 0.85f  // extremely strict raw score (jaagrut hits 0.99+)
+    private val MIN_HITS_TO_TRIGGER = 3      // requires sustained high scores (3/4 frames) to reject substrings like "jaag"
+    
+    // Pipeline constants
+    private val CHUNK_SIZE = 1280          // 80ms at 16kHz
+    private val MEL_FRAMES_NEEDED = 76     // mel frames for embedding input
+    private val EMBEDDING_FRAMES_NEEDED = 16 // embeddings for wake word input
+    
+    private var androidSTTAdapter: AndroidSTTAdapter? = null
+    private var sarvamSTTAdapter: SarvamSTTAdapter? = null
+    private var speechAdapter: SpeechAdapter? = null
+    private var actionExecutor: ActionExecutor? = null
+    private val commandParser = CommandParser()
+    internal val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // Battery Receiver
+    private val batteryReceiver = com.example.jago.logic.BatteryReceiver()
+
+    private val activationReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            if (intent?.action == "com.example.jago.ACTIVATE_SAATHI") {
+                Log.d("WakeWordService", "Received ACTIVATE_SAATHI broadcast")
+                showOverlay()
+            }
+        }
+    }
+
+    // Follow-up state
+    private var isWaitingForReminderTime = false
+    private var isWaitingForReminderMessage = false
+    private var pendingReminderMessage: String? = null
+    private var pendingTriggerMillis: Long? = null
+    private var pendingFormattedTime: String? = null
+    private var isWaitingForAlarmTime = false
+
+    // Notification reading follow-up state
+    private var pendingNotifications = listOf<com.example.jago.logic.NotificationStore.NotificationItem>()
+    private var currentNotificationIndex = 0
+    private var isWaitingForNotificationResponse = false
+    
+    // Memory for WhatsApp direct reply
+    private var isWaitingForWhatsAppMessage = false
+    private var pendingWhatsAppContact: String? = null
+
+    // Memory for Telegram direct reply
+    private var isWaitingForTelegramMessage = false
+    private var pendingTelegramContact: String? = null
+
+    // Memory for Email direct reply
+    private var isWaitingForEmailMessage = false
+    private var pendingEmailContact: String? = null
+
+    // True when Jago is mid-flow and should not auto-close on TTS end
+    @Volatile var isMidFlow = false
+
+    override fun onCreate() {
+        super.onCreate()
+        isServiceRunning = true
+        instance = this
+        startForeground(1, createNotification())
+        
+        actionExecutor = ActionExecutor(this)
+        com.example.jago.logic.NotificationStore.init(this)
+        androidSTTAdapter = AndroidSTTAdapter(this)
+        sarvamSTTAdapter = SarvamSTTAdapter(this)
+        speechAdapter = androidSTTAdapter
+        
+        JagoTTS.onSpeechStateChange = { isSpeaking ->
+            if (!isSpeaking && !isMidFlow) {
+                 hideOverlayWithDelay()
+            }
+        }
+        
+        registerReceiver(batteryReceiver, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        Log.d("WakeWordService", "BatteryReceiver registered")
+        
+        if (WAKE_WORD_ENABLED) {
+            initWakeWord()
+        }
+        
+        val filter = android.content.IntentFilter("com.example.jago.ACTIVATE_SAATHI")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(activationReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(activationReceiver, filter)
+        }
+    }
+
+    private fun initWakeWord() {
+        try {
+            // Mel spectrogram ONNX
+            val melBytes = assets.open("melspectrogram.onnx").readBytes()
+            melSession = ortEnv.createSession(melBytes, OrtSession.SessionOptions())
+    
+            // Embedding ONNX (extracts 96-dim features from 76 mel frames)
+            val embBytes = assets.open("embedding_model.onnx").readBytes()
+            embeddingSession = ortEnv.createSession(embBytes, OrtSession.SessionOptions())
+
+            // LSTM wake word ONNX (evaluates 16 embedding frames)
+            val wwBytes = assets.open("jaag_ruut.onnx").readBytes()
+            wakeWordSession = ortEnv.createSession(wwBytes, OrtSession.SessionOptions())
+    
+            isDetecting = true
+            startAudioCapture()
+            Log.d("Jago", "NanoWakeWord 3-model pipeline initialized ✓")
+        } catch (e: Exception) {
+            Log.e("Jago", "Failed to init wake word models", e)
+        }
+    }
+
+    private fun startAudioCapture() {
+        val minBufferSize = AudioRecord.getMinBufferSize(
+            16000,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+
+        try {
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                16000,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                maxOf(CHUNK_SIZE * 2, minBufferSize)
+            )
+
+            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e("Jago", "AudioRecord failed to initialize")
+                return
+            }
+
+            audioRecord?.startRecording()
+        } catch (e: SecurityException) {
+            Log.e("Jago", "Missing MICROPHONE permission", e)
+            Handler(Looper.getMainLooper()).post {
+                JagoTTS.speak("I need microphone permission to listen for the wake word.")
+            }
+            return
+        }
+
+        audioThread = Thread {
+            val chunkBuffer = ShortArray(CHUNK_SIZE)
+            var cooldownFrames = 0
+
+            while (isServiceRunning) {
+                val read = audioRecord?.read(chunkBuffer, 0, CHUNK_SIZE) ?: break
+                if (read <= 0 || !isDetecting) continue
+
+                if (cooldownFrames > 0) {
+                    cooldownFrames--
+                    continue
+                }
+
+                // STEP A — convert raw PCM to float (use actual read count, not CHUNK_SIZE)
+                val floatChunk = FloatArray(read) { chunkBuffer[it].toFloat() }
+
+                // Compute RMS for energy gate (used later, AFTER mel processing)
+                val rms = Math.sqrt(floatChunk.map { it * it }.average()).toFloat()
+
+                // Pad to CHUNK_SIZE for mel model if needed
+                val paddedChunk = if (floatChunk.size < CHUNK_SIZE) {
+                    FloatArray(CHUNK_SIZE).also { arr -> floatChunk.copyInto(arr) }
+                } else floatChunk
+
+                // STEP B — melspectrogram via ONNX (ALWAYS run to keep mel buffer continuous)
+                val melArray: List<FloatArray>?
+                val inputTensor = ai.onnxruntime.OnnxTensor.createTensor(
+                    ortEnv,
+                    java.nio.FloatBuffer.wrap(paddedChunk),
+                    longArrayOf(1, 1280)
+                )
+                try {
+                    val melInputName = melSession?.inputNames?.iterator()?.next() ?: "input"
+                    val melResults = melSession?.run(mapOf(melInputName to inputTensor))
+                    melArray = (melResults?.get(0)?.value as? Array<*>)
+                        ?.let { it[0] as? Array<*> }
+                        ?.let { it[0] as? Array<*> }
+                        ?.map { (it as FloatArray) }
+                    melResults?.close()
+                } catch (e: Exception) {
+                    Log.e("Jago", "Mel model error: ${e.message}")
+                    inputTensor.close()
+                    continue
+                }
+                inputTensor.close()
+
+                if (melArray == null) continue
+
+                // STEP C — push scaled mel frames into rolling buffer (openWakeWord scaling)
+                for (melFrame in melArray) {
+                    val scaled = FloatArray(melFrame.size) { i -> (melFrame[i] / 10.0f) + 2.0f }
+                    melFrameBuffer.addLast(scaled)
+                }
+                // 1280 samples = 80ms = exactly 8 mel frames added.
+                // We slide the window by removing the oldest 8.
+                while (melFrameBuffer.size > MEL_FRAMES_NEEDED) melFrameBuffer.removeFirst()
+
+                // Validate mel output shape
+                if (melFrameBuffer.size == MEL_FRAMES_NEEDED && melFrameBuffer[0].size != 32) {
+                    Log.e("Jago", "MEL SHAPE MISMATCH — got ${melFrameBuffer[0].size} bins, expected 32.")
+                }
+
+                if (melFrameBuffer.size < MEL_FRAMES_NEEDED) continue
+
+                // STEP D — embedding model (shape [1, 76, 32, 1])
+                val embInput = Array(1) {
+                    Array(MEL_FRAMES_NEEDED) { f ->
+                        Array(32) { m ->
+                            FloatArray(1) { melFrameBuffer[f][m] }
+                        }
+                    }
+                }
+                val embTensor = ai.onnxruntime.OnnxTensor.createTensor(ortEnv, embInput)
+                var embOutput: FloatArray? = null
+                try {
+                    val embInputName = embeddingSession?.inputNames?.iterator()?.next() ?: "input"
+                    val embResults = embeddingSession?.run(mapOf(embInputName to embTensor))
+                    (embResults?.get(0) as? ai.onnxruntime.OnnxTensor)?.floatBuffer?.let { fb ->
+                        embOutput = FloatArray(fb.capacity()).apply { fb.get(this) }
+                    }
+                    embResults?.close()
+                } catch (e: Exception) {
+                    Log.e("Jago", "Embedding model error: ${e.message}")
+                    embTensor.close()
+                    continue
+                }
+                embTensor.close()
+                
+                if (embOutput == null) continue
+
+                embeddingBuffer.addLast(embOutput!!)
+                while (embeddingBuffer.size > EMBEDDING_FRAMES_NEEDED) embeddingBuffer.removeFirst()
+
+                if (embeddingBuffer.size < EMBEDDING_FRAMES_NEEDED) continue
+
+                // STEP E — wake word model (shape [1, 16, 96])
+                val wwInput = Array(1) {
+                    Array(EMBEDDING_FRAMES_NEEDED) { i -> embeddingBuffer[i] }
+                }
+                val wwTensor = ai.onnxruntime.OnnxTensor.createTensor(ortEnv, wwInput)
+                var score = 0f
+                try {
+                    val inputName = wakeWordSession?.inputNames?.iterator()?.next() ?: "input"
+                    val results = wakeWordSession?.run(mapOf(inputName to wwTensor))
+                    score = (results?.get(0) as? ai.onnxruntime.OnnxTensor)?.floatBuffer?.get(0) ?: 0f
+                    results?.close()
+                } catch (e: Exception) {
+                    Log.e("Jago", "Wake word model error: ${e.message}")
+                    wwTensor.close()
+                    continue
+                }
+                wwTensor.close()
+
+                // Count-based triggering over last 5 frames — rejects short substrings like "jaag"
+                // and requires sustained high scores from the full "jaagrut"
+                scoreHistory.addLast(score)
+                while (scoreHistory.size > SCORE_HISTORY_SIZE) scoreHistory.removeFirst()
+                val hitCount = scoreHistory.count { it > RAW_SCORE_THRESHOLD }
+
+                if (score > 0.1f) Log.d("Jago", "LSTM score: $score | hits: $hitCount/${scoreHistory.size}")
+
+                // STEP F — trigger if at least 4 out of 5 recent frames exceeded raw threshold
+                if (scoreHistory.size >= SCORE_HISTORY_SIZE && hitCount >= MIN_HITS_TO_TRIGGER) {
+                    Log.d("Jago", "WAKE WORD DETECTED — raw: $score | hits: $hitCount/$SCORE_HISTORY_SIZE")
+                    isDetecting = false
+                    cooldownFrames = 60           // 60 × 80ms = 4.8 seconds cooldown
+                    melFrameBuffer.clear()
+                    scoreHistory.clear()          // reset after trigger
+                    Handler(Looper.getMainLooper()).post { showOverlay() }
+                }
+            }
+
+            audioRecord?.stop()
+            audioRecord?.release()
+            audioRecord = null
+            audioThread = null  // clear dead reference so resumeWakeWord doesn't try to interrupt a dead thread
+        }
+
+        audioThread?.start()
+    }
+
+    private fun showOverlay() {
+        // Stop wake word mic capture FIRST before STT grabs it
+        isDetecting = false
+        audioRecord?.stop()
+        
+        actionExecutor?.stopSpeaking()
+        com.example.jago.ui.AssistantUIBridge.updateStatus("Listening...")
+        com.example.jago.ui.AssistantUIBridge.updatePartial("")
+        
+        val intent = Intent(this, com.example.jago.ui.AssistantActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        startActivity(intent)
+        
+        // Small delay to let AudioRecord fully release the mic
+        serviceScope.launch {
+            delay(300)
+            startListening()
+        }
+    }
+
+    private fun updateSpeechAdapter() {
+        val isHindi = JagoTTS.currentLanguage == "hi"
+        val isCapturingField = isWaitingForReminderMessage || 
+                               isWaitingForWhatsAppMessage || 
+                               isWaitingForTelegramMessage || 
+                               isWaitingForEmailMessage
+                               
+        val targetAdapter = if (isHindi || isCapturingField) {
+            if (sarvamSTTAdapter == null) {
+                sarvamSTTAdapter = SarvamSTTAdapter(this)
+            }
+            sarvamSTTAdapter
+        } else {
+            if (androidSTTAdapter == null) {
+                androidSTTAdapter = AndroidSTTAdapter(this)
+            }
+            androidSTTAdapter
+        }
+        
+        if (speechAdapter != targetAdapter) {
+            val prevFollowUp = speechAdapter?.isFollowUpListening == true
+            speechAdapter?.destroy()
+            speechAdapter = targetAdapter
+            speechAdapter?.isFollowUpListening = prevFollowUp
+            Log.d("WakeWordService", "Switched speech adapter to ${targetAdapter?.javaClass?.simpleName}")
+        }
+    }
+
+    private fun startListening() {
+        updateSpeechAdapter()
+        com.example.jago.ui.AssistantUIBridge.updateStatus("Listening...")
+        speechAdapter?.startListening(object : SpeechAdapter.Callback {
+            override fun onResult(text: String) {
+                Log.d("Jago", "Speech result: $text")
+                com.example.jago.ui.AssistantUIBridge.updateStatus("Processing...")
+                processCommand(text)
+            }
+
+            override fun onError(error: String) {
+                Log.e("Jago", "Speech error: $error")
+                com.example.jago.ui.AssistantUIBridge.updateStatus("Error: $error")
+                hideOverlayWithDelay()
+            }
+
+            override fun onPartialResult(text: String) {
+                com.example.jago.ui.AssistantUIBridge.updatePartial(text)
+            }
+        })
+    }
+
+    fun processCommand(text: String) {
+        // Translate Hindi/Hinglish to English before parsing
+        val translatedText = com.example.jago.logic.HindiTranslator.translate(text)
+        if (translatedText != text) {
+            Log.d("Jago", "Hindi translated: '$text' \u2192 '$translatedText'")
+        }
+        
+        if (isWaitingForReminderTime) {
+            handleReminderTimeFollowUp(translatedText)
+            return
+        }
+        if (isWaitingForReminderMessage) {
+            handleReminderMessageFollowUp(translatedText)
+            return
+        }
+        if (isWaitingForAlarmTime) {
+            handleAlarmTimeFollowUp(translatedText)
+            return
+        }
+        // Handle notification follow-up response
+        if (isWaitingForNotificationResponse) {
+            handleNotificationFollowUp(translatedText)
+            return
+        }
+        if (isWaitingForWhatsAppMessage) {
+            handleWhatsAppMessageFollowUp(text) // use exact spoken wording
+            return
+        }
+        if (isWaitingForTelegramMessage) {
+            handleTelegramMessageFollowUp(text) // use exact spoken wording
+            return
+        }
+        if (isWaitingForEmailMessage) {
+            handleEmailMessageFollowUp(text) // use exact spoken wording
+            return
+        }
+
+        // Hinglish variations + what en-IN STT actually transcribes
+        val hindiTriggers = listOf(
+            // Hinglish (user speaks Hindi-style)
+            "hindi mai", "hindi mein", "hindi me", "hindi main",
+            "hindi mein bhejo", "hindi mai bhejo",
+            "hindi mein likho", "hindi mein type karo",
+            // English transcription (what STT returns when it hears "hindi mai")
+            "in hindi", "send in hindi", "hindi language",
+            "translate to hindi", "hindi script", "devanagari"
+        )
+        val englishTriggers = listOf(
+            // Hinglish (user speaks Hindi-style)
+            "in english", "english mein", "english mai",
+            "english me", "english main", "english mein bhejo",
+            "english mai bhejo", "english mein likho",
+            // English transcription (what STT returns)
+            "send in english", "english language",
+            "translate to english", "proper english", "english script"
+        )
+
+        val lowerText = translatedText.lowercase()
+        val wantsHindi = hindiTriggers.any { lowerText.contains(it.lowercase()) }
+        val wantsEnglish = englishTriggers.any { lowerText.contains(it.lowercase()) }
+
+        // Strip trigger from text before parsing so parser doesn't get confused
+        var cleanText = translatedText
+        if (wantsHindi) {
+            hindiTriggers.forEach { trigger ->
+                cleanText = cleanText.replace(trigger, "", ignoreCase = true).trim()
+            }
+        } else if (wantsEnglish) {
+            englishTriggers.forEach { trigger ->
+                cleanText = cleanText.replace(trigger, "", ignoreCase = true).trim()
+            }
+        }
+
+        val commands = commandParser.parse(cleanText)
+        val validCommands = commands.filter { it.type != CommandType.UNKNOWN }
+
+        if (validCommands.isNotEmpty()) {
+            val command = validCommands.first()
+            Log.d("WakeWordService", "Executing local command: ${command.type}")
+            com.example.jago.ui.AssistantUIBridge.emitTelemetry(
+                com.example.jago.ui.TelemetryEvent(
+                    source = "Local",
+                    latencyMs = 0L,
+                    routingPath = "Local match → ${command.type}",
+                    rawAction = command.type.name
+                )
+            )
+
+            // If this is a message command AND user wants translation
+            if ((command.type == CommandType.SEND_WHATSAPP_MESSAGE) &&
+                (wantsHindi || wantsEnglish) &&
+                !command.messageBody.isNullOrEmpty()) {
+
+                // Translate async then send
+                serviceScope.launch {
+                    val originalBody = command.messageBody ?: ""
+                    JagoTTS.speak("Translating message...")
+
+                    val translatedBody = if (wantsHindi) {
+                        TranslationClient.toDevanagari(originalBody)
+                    } else {
+                        TranslationClient.toEnglish(originalBody)
+                    }
+
+                    if (translatedBody != null) {
+                        Log.d("Jago", "Message translated: '$originalBody' \u2192 '$translatedBody'")
+                        val translatedCommand = command.copy(messageBody = translatedBody)
+                        actionExecutor?.execute(translatedCommand)
+                    } else {
+                        // Translation failed — send original as fallback
+                        JagoTTS.speakWithCallback(
+                            "Translation failed. Sending in original language."
+                        ) {
+                            actionExecutor?.execute(command)
+                        }
+                    }
+                    hideOverlayWithDelay()
+                }
+                return // Don't fall through to normal execution
+            }
+
+            // Normal command execution (no translation needed)
+            when (command.type) {
+                CommandType.SET_REMINDER -> handleNewReminderCommand(command)
+                CommandType.SET_ALARM_CUSTOM, CommandType.SET_ALARM -> handleNewAlarmCommand(command)
+                CommandType.SCHEDULED_ACTION -> handleScheduledCommand(command)
+                CommandType.READ_NOTIFICATIONS -> {
+                    val notifications = com.example.jago.logic.NotificationStore.getAndClear(this)
+                    if (notifications.isEmpty()) {
+                        JagoTTS.speakBilingual(
+                            "No new notifications.",
+                            "Koi nayi notification nahi hai."
+                        )
+                        hideOverlayWithDelay()
+                    } else {
+                        pendingNotifications = notifications
+                        currentNotificationIndex = 0
+                        readSingleNotification(notifications[0])
+                    }
+                }
+                CommandType.SET_LANGUAGE -> {
+                    val lang = command.messageBody ?: "en"
+                    JagoTTS.setLanguage(lang)
+                    if (lang == "hi") {
+                        JagoTTS.speak("Theek hai, ab main Hindi mein bolunga.")
+                    } else {
+                        JagoTTS.speak("Okay, I'll speak in English from now on.")
+                    }
+                    hideOverlayWithDelay()
+                }
+                CommandType.READ_SCREEN -> {
+                    isMidFlow = true
+                    hideOverlayWithDelay()
+                    serviceScope.launch {
+                        kotlinx.coroutines.delay(600) // Wait for overlay to completely close so it doesn't block the screen
+                        actionExecutor?.execute(command)
+                        isMidFlow = false
+                    }
+                }
+                else -> {
+                    validCommands.forEach { cmd ->
+                         actionExecutor?.execute(cmd)
+                    }
+                }
+            }
+        } else {
+            val voiceMacro = com.example.jago.logic.MacroEngine.getMacro(this, cleanText)
+            if (voiceMacro != null) {
+                Log.d("WakeWordService", "Voice command matches recorded voice macro: ${voiceMacro.voiceShortcut}")
+                com.example.jago.ui.AssistantUIBridge.emitTelemetry(
+                    com.example.jago.ui.TelemetryEvent(
+                        source = "Local",
+                        latencyMs = 0L,
+                        routingPath = "Macro match → ${voiceMacro.voiceShortcut}",
+                        rawAction = "playMacro"
+                    )
+                )
+                com.example.jago.service.JagoAccessibilityService.playMacro(this, voiceMacro)
+                hideOverlayWithDelay()
+            } else {
+                Log.d("WakeWordService", "No local command or custom macro matched \u2192 Routing to Jagrut Execution Engine")
+                serviceScope.launch {
+                    com.example.jago.logic.JagrutExecutionEngine.route(this@WakeWordService, cleanText)
+                }
+            }
+        }
+    }
+
+    private fun handleNewAlarmCommand(command: Command) {
+        if (command.missingTime) {
+             isMidFlow = true
+             isWaitingForAlarmTime = true
+             speechAdapter?.isFollowUpListening = true
+             JagoTTS.speakBilingualWithCallback(
+                 "When should I set the alarm?",
+                 "Alarm kab lagaun?"
+             ) {
+                 startListening()
+             }
+        } else {
+            actionExecutor?.execute(command)
+            hideOverlayWithDelay()
+        }
+    }
+
+    private fun handleAlarmTimeFollowUp(text: String) {
+        val tempCommand = commandParser.parse("wake me $text") 
+        val alarmCmd = tempCommand.find { it.type == CommandType.SET_ALARM_CUSTOM }
+
+        if (alarmCmd != null && !alarmCmd.missingTime) {
+            actionExecutor?.execute(alarmCmd)
+            isWaitingForAlarmTime = false
+            isMidFlow = false
+            speechAdapter?.isFollowUpListening = false
+            hideOverlayWithDelay()
+        } else {
+            speechAdapter?.isFollowUpListening = true
+            JagoTTS.speakBilingualWithCallback(
+                "I didn't catch the time. Please say something like '7 am'.",
+                "Samay samajh nahi aaya. '7 am' jaise bolein."
+            ) {
+                startListening()
+            }
+        }
+    }
+
+    private fun handleNewReminderCommand(command: Command) {
+        when {
+            command.missingMessage -> {
+                isMidFlow = true
+                isWaitingForReminderMessage = true
+                pendingTriggerMillis = command.triggerMillis
+                pendingFormattedTime = command.formattedTime
+                speechAdapter?.isFollowUpListening = true
+                JagoTTS.speakBilingualWithCallback(
+                    "What should I remind you about?",
+                    "Kya yaad dilana hai?"
+                ) {
+                    startListening()
+                }
+            }
+            command.missingTime -> {
+                isMidFlow = true
+                isWaitingForReminderTime = true
+                pendingReminderMessage = command.messageBody
+                speechAdapter?.isFollowUpListening = true
+                JagoTTS.speakBilingualWithCallback(
+                    "When should I remind you?",
+                    "Kab yaad dilana hai?"
+                ) {
+                    startListening()
+                }
+            }
+            else -> {
+                actionExecutor?.execute(command)
+                hideOverlayWithDelay()
+            }
+        }
+    }
+
+    private fun handleReminderTimeFollowUp(text: String) {
+        val tempCommand = commandParser.parse("remind me at $text")
+        val reminderCmd = tempCommand.find { it.type == CommandType.SET_REMINDER }
+        
+        if (reminderCmd != null && !reminderCmd.missingTime) {
+            val finalCommand = Command(
+                type = CommandType.SET_REMINDER,
+                messageBody = pendingReminderMessage,
+                triggerMillis = reminderCmd.triggerMillis,
+                formattedTime = reminderCmd.formattedTime
+            )
+            actionExecutor?.execute(finalCommand)
+            resetReminderState()
+            hideOverlayWithDelay()
+        } else {
+            speechAdapter?.isFollowUpListening = true
+            JagoTTS.speakBilingualWithCallback(
+                "I need a time for the reminder.",
+                "Samay batao."
+            ) {
+                startListening()
+            }
+        }
+    }
+
+    private fun handleReminderMessageFollowUp(text: String) {
+        pendingReminderMessage = text
+        isWaitingForReminderMessage = false
+        
+        if (pendingTriggerMillis == null) {
+            isWaitingForReminderTime = true
+            speechAdapter?.isFollowUpListening = true
+            JagoTTS.speakBilingualWithCallback(
+                    "When should I remind you?",
+                    "Kab yaad dilana hai?"
+                ) {
+                startListening()
+            }
+        } else {
+            val finalCommand = Command(
+                type = CommandType.SET_REMINDER,
+                messageBody = pendingReminderMessage,
+                triggerMillis = pendingTriggerMillis,
+                formattedTime = pendingFormattedTime
+            )
+            actionExecutor?.execute(finalCommand)
+            resetReminderState()
+            hideOverlayWithDelay()
+        }
+    }
+
+    private fun resetReminderState() {
+        speechAdapter?.isFollowUpListening = false
+        isWaitingForReminderTime = false
+        isWaitingForReminderMessage = false
+        pendingReminderMessage = null
+        pendingTriggerMillis = null
+        pendingFormattedTime = null
+        isMidFlow = false
+    }
+
+    private fun handleScheduledCommand(command: Command) {
+        val innerCommand = command.scheduledCommand
+        val triggerTime = command.triggerAtMillis
+        
+        if (innerCommand != null && triggerTime != null) {
+            val task = com.example.jago.scheduler.ScheduledTask(
+                id = System.currentTimeMillis(),
+                command = innerCommand,
+                triggerAtMillis = triggerTime
+            )
+            com.example.jago.scheduler.ScheduledTaskEngine.scheduleTask(this, task)
+            val formattedTime = command.formattedTime ?: "later"
+            JagoTTS.speak("I've scheduled that command for $formattedTime")
+            hideOverlayWithDelay()
+        } else {
+             JagoTTS.speak("I couldn't schedule that command.")
+             hideOverlayWithDelay()
+        }
+    }
+
+    private fun handleNotificationFollowUp(text: String) {
+        val lower = text.lowercase()
+
+        val wantsNext = listOf(
+            "agla", "next", "agla padhao", "aage", "agli",
+            "next one", "aur padhao", "continue", "aur sunao",
+            "haan", "yes", "suno", "padhao", "batao"
+        ).any { lower.contains(it) }
+
+        val wantsReply = listOf(
+            "jawab", "reply", "jawab dena", "jawab do",
+            "respond", "answer", "bhejo", "likho"
+        ).any { lower.contains(it) }
+
+        val wantsStop = listOf(
+            "band karo", "band", "stop", "bas karo", "bas",
+            "rukh ja", "enough", "mat padhao",
+            "rehne do", "chodo", "nahi chahiye"
+        ).any { lower.contains(it) }
+
+        when {
+            wantsStop -> {
+                isWaitingForNotificationResponse = false
+                isMidFlow = false
+                speechAdapter?.isFollowUpListening = false
+                pendingNotifications = emptyList()
+                currentNotificationIndex = 0
+                JagoTTS.speakBilingual("Okay, stopping.", "Theek hai.")
+                hideOverlayWithDelay()
+            }
+            wantsReply -> {
+                isWaitingForNotificationResponse = false
+                val current = pendingNotifications.getOrNull(currentNotificationIndex)
+
+                if (current?.sender != null) {
+                    // Check if user already said the message in the same breath
+                    // e.g. "reply main aa raha hoon" or "jawab main aa raha hoon"
+                    var inlineMessage = lower
+                    listOf("jawab", "reply", "jawab dena", "jawab do",
+                        "respond", "answer", "bhejo", "likho").forEach { word ->
+                        inlineMessage = inlineMessage.replace(word, "").trim()
+                    }
+                    inlineMessage = inlineMessage.trim()
+
+                    if (inlineMessage.isNotEmpty() && inlineMessage.length > 2) {
+                        // User said message inline — send directly without asking
+                        Log.d("WakeWordService", "Inline reply detected: $inlineMessage")
+                        isMidFlow = false
+                        speechAdapter?.isFollowUpListening = false
+                        val finalCommand = com.example.jago.logic.Command(
+                            type = com.example.jago.logic.CommandType.SEND_WHATSAPP_MESSAGE,
+                            contactName = current.sender,
+                            messageBody = inlineMessage
+                        )
+                        JagoTTS.speakBilingual(
+                            "Sending to ${current.sender}",
+                            "${current.sender} ko bhej raha hoon"
+                        )
+                        actionExecutor?.execute(finalCommand)
+                        hideOverlayWithDelay()
+                    } else {
+                        // No inline message — ask what to say
+                        isMidFlow = true
+                        isWaitingForWhatsAppMessage = true
+                        pendingWhatsAppContact = current.sender
+                        speechAdapter?.isFollowUpListening = true
+                        JagoTTS.speakBilingualWithCallback(
+                            "What should I say to ${current.sender}?",
+                            "${current.sender} ko kya jawab dun?"
+                        ) {
+                            startListening()
+                        }
+                    }
+                } else {
+                    // No sender — open the app so user can reply manually
+                    isMidFlow = false
+                    speechAdapter?.isFollowUpListening = false
+                    val appName = current?.appName ?: "the app"
+                    JagoTTS.speakBilingual(
+                        "Opening $appName for you to reply.",
+                        "$appName khol raha hoon jawab dene ke liye."
+                    )
+                    current?.appName?.let { app ->
+                        actionExecutor?.execute(
+                            com.example.jago.logic.Command(
+                                com.example.jago.logic.CommandType.OPEN_APP,
+                                contactName = app
+                            )
+                        )
+                    }
+                    hideOverlayWithDelay()
+                }
+            }
+            wantsNext -> {
+                currentNotificationIndex++
+                if (currentNotificationIndex < pendingNotifications.size) {
+                    readSingleNotification(pendingNotifications[currentNotificationIndex])
+                } else {
+                    isWaitingForNotificationResponse = false
+                    isMidFlow = false
+                    speechAdapter?.isFollowUpListening = false
+                    pendingNotifications = emptyList()
+                    currentNotificationIndex = 0
+                    JagoTTS.speakBilingual(
+                        "No more notifications.",
+                        "Aur koi notification nahi hai."
+                    )
+                    hideOverlayWithDelay()
+                }
+            }
+            else -> {
+                // Didn't understand — ask again
+                JagoTTS.speakBilingualWithCallback(
+                    "Say 'next' for next, 'reply' to reply, or 'stop' to stop.",
+                    "Agla sunne ke liye 'agla' bolo, jawab ke liye 'jawab', band ke liye 'band'."
+                ) {
+                    speechAdapter?.isFollowUpListening = true
+                    startListening()
+                }
+            }
+        }
+    }
+
+    private fun handleWhatsAppMessageFollowUp(text: String) {
+        val contact = pendingWhatsAppContact
+        isWaitingForWhatsAppMessage = false
+        pendingWhatsAppContact = null
+        speechAdapter?.isFollowUpListening = false
+
+        if (contact == null) {
+            isMidFlow = false
+            hideOverlayWithDelay()
+            return
+        }
+
+        val msgBody = text.trim()
+
+        // Detect if user specified language in the reply itself
+        val lowerMsg = msgBody.lowercase()
+        val wantsHindi = listOf("in hindi", "hindi mein", "hindi mai", "hindi me")
+            .any { lowerMsg.contains(it) }
+        val wantsEnglish = listOf("in english", "english mein", "english mai")
+            .any { lowerMsg.contains(it) }
+
+        // Strip language trigger from body
+        var cleanBody = msgBody
+        if (wantsHindi) {
+            listOf("in hindi", "hindi mein", "hindi mai", "hindi me")
+                .forEach { cleanBody = cleanBody.replace(it, "", ignoreCase = true).trim() }
+        } else if (wantsEnglish) {
+            listOf("in english", "english mein", "english mai")
+                .forEach { cleanBody = cleanBody.replace(it, "", ignoreCase = true).trim() }
+        }
+
+        // Determine if translation needed:
+        // Either user explicitly said "in hindi" OR global language is set to Hindi
+        val shouldTranslateToHindi = wantsHindi ||
+            (!wantsEnglish && JagoTTS.currentLanguage == "hi")
+        val shouldTranslateToEnglish = wantsEnglish
+
+        if (shouldTranslateToHindi || shouldTranslateToEnglish) {
+            // Translate async then send
+            serviceScope.launch {
+                JagoTTS.speakBilingual("Translating...", "Translate kar raha hoon...")
+                val translatedBody = if (shouldTranslateToHindi) {
+                    TranslationClient.toDevanagari(cleanBody)
+                } else {
+                    TranslationClient.toEnglish(cleanBody)
+                }
+                val finalBody = translatedBody ?: cleanBody // fallback to original
+                val finalCommand = com.example.jago.logic.Command(
+                    type = com.example.jago.logic.CommandType.SEND_WHATSAPP_MESSAGE,
+                    contactName = contact,
+                    messageBody = finalBody
+                )
+                isMidFlow = false
+                actionExecutor?.execute(finalCommand)
+                hideOverlayWithDelay()
+            }
+        } else {
+            // No translation needed — send as-is
+            isMidFlow = false
+            val finalCommand = com.example.jago.logic.Command(
+                type = com.example.jago.logic.CommandType.SEND_WHATSAPP_MESSAGE,
+                contactName = contact,
+                messageBody = cleanBody
+            )
+            actionExecutor?.execute(finalCommand)
+            hideOverlayWithDelay()
+        }
+    }
+
+    private fun handleTelegramMessageFollowUp(text: String) {
+        val contact = pendingTelegramContact
+        isWaitingForTelegramMessage = false
+        pendingTelegramContact = null
+        speechAdapter?.isFollowUpListening = false
+
+        if (contact == null) {
+            isMidFlow = false
+            hideOverlayWithDelay()
+            return
+        }
+
+        val msgBody = text.trim()
+
+        val lowerMsg = msgBody.lowercase()
+        val wantsHindi = listOf("in hindi", "hindi mein", "hindi mai", "hindi me")
+            .any { lowerMsg.contains(it) }
+        val wantsEnglish = listOf("in english", "english mein", "english mai")
+            .any { lowerMsg.contains(it) }
+
+        var cleanBody = msgBody
+        if (wantsHindi) {
+            listOf("in hindi", "hindi mein", "hindi mai", "hindi me")
+                .forEach { cleanBody = cleanBody.replace(it, "", ignoreCase = true).trim() }
+        } else if (wantsEnglish) {
+            listOf("in english", "english mein", "english mai")
+                .forEach { cleanBody = cleanBody.replace(it, "", ignoreCase = true).trim() }
+        }
+
+        val shouldTranslateToHindi = wantsHindi ||
+            (!wantsEnglish && JagoTTS.currentLanguage == "hi")
+        val shouldTranslateToEnglish = wantsEnglish
+
+        if (shouldTranslateToHindi || shouldTranslateToEnglish) {
+            serviceScope.launch {
+                JagoTTS.speakBilingual("Translating...", "Translate kar raha hoon...")
+                val translatedBody = if (shouldTranslateToHindi) {
+                    TranslationClient.toDevanagari(cleanBody)
+                } else {
+                    TranslationClient.toEnglish(cleanBody)
+                }
+                val finalBody = translatedBody ?: cleanBody
+                val finalCommand = com.example.jago.logic.Command(
+                    type = com.example.jago.logic.CommandType.SEND_TELEGRAM_MESSAGE,
+                    contactName = contact,
+                    messageBody = finalBody
+                )
+                isMidFlow = false
+                actionExecutor?.execute(finalCommand)
+                hideOverlayWithDelay()
+            }
+        } else {
+            isMidFlow = false
+            val finalCommand = com.example.jago.logic.Command(
+                type = com.example.jago.logic.CommandType.SEND_TELEGRAM_MESSAGE,
+                contactName = contact,
+                messageBody = cleanBody
+            )
+            actionExecutor?.execute(finalCommand)
+            hideOverlayWithDelay()
+        }
+    }
+
+    private fun handleEmailMessageFollowUp(text: String) {
+        val contact = pendingEmailContact
+        isWaitingForEmailMessage = false
+        pendingEmailContact = null
+        speechAdapter?.isFollowUpListening = false
+
+        if (contact == null) {
+            isMidFlow = false
+            hideOverlayWithDelay()
+            return
+        }
+
+        val msgBody = text.trim()
+
+        val lowerMsg = msgBody.lowercase()
+        val wantsHindi = listOf("in hindi", "hindi mein", "hindi mai", "hindi me")
+            .any { lowerMsg.contains(it) }
+        val wantsEnglish = listOf("in english", "english mein", "english mai")
+            .any { lowerMsg.contains(it) }
+
+        var cleanBody = msgBody
+        if (wantsHindi) {
+            listOf("in hindi", "hindi mein", "hindi mai", "hindi me")
+                .forEach { cleanBody = cleanBody.replace(it, "", ignoreCase = true).trim() }
+        } else if (wantsEnglish) {
+            listOf("in english", "english mein", "english mai")
+                .forEach { cleanBody = cleanBody.replace(it, "", ignoreCase = true).trim() }
+        }
+
+        val shouldTranslateToHindi = wantsHindi ||
+            (!wantsEnglish && JagoTTS.currentLanguage == "hi")
+        val shouldTranslateToEnglish = wantsEnglish
+
+        if (shouldTranslateToHindi || shouldTranslateToEnglish) {
+            serviceScope.launch {
+                JagoTTS.speakBilingual("Translating...", "Translate kar raha hoon...")
+                val translatedBody = if (shouldTranslateToHindi) {
+                    TranslationClient.toDevanagari(cleanBody)
+                } else {
+                    TranslationClient.toEnglish(cleanBody)
+                }
+                val finalBody = translatedBody ?: cleanBody
+                val finalCommand = com.example.jago.logic.Command(
+                    type = com.example.jago.logic.CommandType.SEND_EMAIL,
+                    contactName = contact,
+                    messageBody = finalBody
+                )
+                isMidFlow = false
+                actionExecutor?.execute(finalCommand)
+                hideOverlayWithDelay()
+            }
+        } else {
+            isMidFlow = false
+            val finalCommand = com.example.jago.logic.Command(
+                type = com.example.jago.logic.CommandType.SEND_EMAIL,
+                contactName = contact,
+                messageBody = cleanBody
+            )
+            actionExecutor?.execute(finalCommand)
+            hideOverlayWithDelay()
+        }
+    }
+
+    private fun readSingleNotification(
+        item: com.example.jago.logic.NotificationStore.NotificationItem
+    ) {
+        isMidFlow = true
+        val remaining = pendingNotifications.size - currentNotificationIndex - 1
+
+        // Build summary separately from content
+        val summary = if (item.sender != null) {
+            if (JagoTTS.currentLanguage == "hi")
+                "${item.appName} par ${item.sender} ka message"
+            else
+                "${item.appName} message from ${item.sender}"
+        } else {
+            item.appName
+        }
+
+        val followUp = if (remaining > 0) {
+            if (JagoTTS.currentLanguage == "hi")
+                "$remaining aur hain. Agla padho ki jawab dena hai? Band karne ke liye 'band' bolo."
+            else
+                "$remaining more. Say 'next' for next, 'reply' to reply, or 'stop' to stop."
+        } else {
+            if (JagoTTS.currentLanguage == "hi")
+                "Yahi tha. Jawab dena hai? Ya band karo."
+            else
+                "That's all. Say 'reply' to reply or 'stop' to stop."
+        }
+
+        // Chain: speak summary → speak content → speak followUp → listen
+        // Each step waits for previous to fully complete
+        JagoTTS.speakWithCallback(summary) {
+            JagoTTS.speakWithCallback(item.content) {
+                JagoTTS.speakWithCallback(followUp) {
+                    isWaitingForNotificationResponse = true
+                    speechAdapter?.isFollowUpListening = true
+                    startListening()
+
+                    // Auto-reset after 30 seconds if user doesn't respond
+                    // Prevents state getting permanently stuck
+                    serviceScope.launch {
+                        delay(30000)
+                        if (isWaitingForNotificationResponse) {
+                            Log.w("Jago", "Notification follow-up timed out — resetting state")
+                            isWaitingForNotificationResponse = false
+                            isMidFlow = false
+                            speechAdapter?.isFollowUpListening = false
+                            pendingNotifications = emptyList()
+                            currentNotificationIndex = 0
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    internal fun hideOverlayWithDelay() {
+        serviceScope.launch {
+            delay(300)
+            com.example.jago.ui.AssistantUIBridge.closeUI()
+            resumeWakeWord()
+        }
+    }
+
+    fun startWhatsAppMessageFollowUp(contactName: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            isMidFlow = true
+            isWaitingForWhatsAppMessage = true
+            pendingWhatsAppContact = contactName
+            speechAdapter?.isFollowUpListening = true
+            startListening()
+        }
+    }
+
+    fun startTelegramMessageFollowUp(contactName: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            isMidFlow = true
+            isWaitingForTelegramMessage = true
+            pendingTelegramContact = contactName
+            speechAdapter?.isFollowUpListening = true
+            startListening()
+        }
+    }
+
+    fun startEmailMessageFollowUp(contactName: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            isMidFlow = true
+            isWaitingForEmailMessage = true
+            pendingEmailContact = contactName
+            speechAdapter?.isFollowUpListening = true
+            startListening()
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        return START_STICKY
+    }
+
+    private fun resumeWakeWord() {
+        if (!WAKE_WORD_ENABLED) return
+        serviceScope.launch {
+            delay(1500)
+            melFrameBuffer.clear()
+            embeddingBuffer.clear()
+            scoreHistory.clear()
+            try {
+                if (audioRecord?.state == AudioRecord.STATE_INITIALIZED) {
+                    audioRecord?.startRecording()
+                    isDetecting = true
+                    Log.d("Jago", "Wake word detection resumed")
+                } else {
+                    // AudioRecord is in bad state — stop old thread first,
+                    // then restart cleanly to avoid double-thread bug
+                    Log.w("Jago", "AudioRecord in bad state, restarting capture cleanly")
+                    isDetecting = false
+                    audioThread?.interrupt()
+                    audioThread?.join(500) // wait max 500ms for old thread to die
+                    audioThread = null
+                    audioRecord?.stop()
+                    audioRecord?.release()
+                    audioRecord = null
+                    startAudioCapture()
+                    isDetecting = true
+                }
+            } catch (e: Exception) {
+                Log.e("Jago", "Failed to resume wake word", e)
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        isServiceRunning = false
+        instance = null
+        isDetecting = false
+        audioRecord?.stop()
+        audioRecord?.release()
+        audioRecord = null
+        audioThread?.interrupt()
+        melSession?.close()
+        embeddingSession?.close()
+        wakeWordSession?.close()
+        speechAdapter?.destroy()
+        actionExecutor?.shutdown()
+        serviceScope.cancel()
+        try {
+            unregisterReceiver(batteryReceiver)
+        } catch (e: Exception) {}
+        try {
+            unregisterReceiver(activationReceiver)
+        } catch (e: Exception) {}
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun createNotification(): Notification {
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(this, "JagoServiceChannel")
+            .setContentTitle("Jago is Listening")
+            .setContentText("Say 'Jago'...")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .build()
+    }
+}

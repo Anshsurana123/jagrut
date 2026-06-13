@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/floating_bubble"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:elevation="16dp">
+
+    <!-- Pulsing Red Recording Indicator -->
+    <View
+        android:id="@+id/pulsingDot"
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_marginEnd="8dp"
+        android:background="@android:drawable/presence_online"
+        android:backgroundTint="@color/alert_red" />
+
+    <TextView
+        android:id="@+id/txtShortcutName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Recording..."
+        android:textSize="12sp"
+        android:textColor="@color/text_primary"
+        android:textStyle="bold"
+        android:layout_marginEnd="12dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:maxWidth="120dp"/>
+
+    <!-- Stop/Save Button -->
+    <Button
+        android:id="@+id/btnStopRecord"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:text="STOP"
+        android:textSize="10sp"
+        android:textColor="@color/text_primary"
+        android:backgroundTint="@color/brand_primary"
+        android:elevation="4dp"
+        android:gravity="center"
+        android:padding="2dp" />
+
+</LinearLayout>

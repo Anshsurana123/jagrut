@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="12dp"
+    android:layout_margin="4dp"
+    android:background="@drawable/glass_card">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/txtShortcutVoice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Voice Trigger"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/txtShortcutSteps"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Steps description"
+            android:textSize="11sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="2dp" />
+
+    </LinearLayout>
+
+    <!-- Play/Test macro -->
+    <ImageButton
+        android:id="@+id/btnPlayMacro"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_play"
+        android:backgroundTint="@color/green_accent"
+        android:padding="6dp"
+        android:scaleType="fitCenter" />
+
+    <!-- Delete macro -->
+    <ImageButton
+        android:id="@+id/btnDeleteMacro"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_menu_delete"
+        android:backgroundTint="@color/alert_red"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:layout_marginStart="8dp" />
+
+</LinearLayout>
