@@ -73,6 +73,10 @@ class ActionExecutor(private val context: Context) {
                     }
                 }
             }
+            CommandType.OPEN_INCOGNITO_TAB -> {
+                JagoTTS.speakBilingual("Opening incognito tab", "Incognito tab khol raha hoon")
+                openIncognitoTab()
+            }
             CommandType.OPEN_WHATSAPP -> {
                 JagoTTS.speakBilingual("Opening WhatsApp", "WhatsApp khol raha hoon")
                 openWhatsApp()
@@ -774,6 +778,32 @@ class ActionExecutor(private val context: Context) {
             context.startActivity(intent)
         } else {
             speak("WhatsApp is not installed.")
+        }
+    }
+
+    private fun openIncognitoTab() {
+        Log.d("ActionExecutor", "Opening Chrome Incognito Tab")
+        val intent = Intent("org.chromium.chrome.browser.incognito.OPEN_PRIVATE_TAB").apply {
+            setPackage("com.android.chrome")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            if (context.packageManager.resolveActivity(intent, 0) != null) {
+                context.startActivity(intent)
+            } else {
+                // Try a generic incognito tab intent (without package restriction)
+                val fallbackIntent = Intent("org.chromium.chrome.browser.incognito.OPEN_PRIVATE_TAB").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                if (context.packageManager.resolveActivity(fallbackIntent, 0) != null) {
+                    context.startActivity(fallbackIntent)
+                } else {
+                    speak("Google Chrome is not installed or doesn't support incognito tabs.")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ActionExecutor", "Failed to open incognito tab", e)
+            speak("I couldn't open an incognito tab.")
         }
     }
 

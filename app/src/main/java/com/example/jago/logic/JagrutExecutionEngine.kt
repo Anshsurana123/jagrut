@@ -109,30 +109,6 @@ object JagrutExecutionEngine {
             return@withContext
         }
 
-        // 2. Semantic Command Matching (Embedding-based, ~1-2s)
-        // Catches paraphrases that exact/fuzzy matching missed
-        try {
-            val semanticMatch = SemanticCommandMatcher.findBestMatch(context, text)
-            if (semanticMatch != null && semanticMatch.commandType != CommandType.UNKNOWN && semanticMatch.commandType != CommandType.AI_RESPONSE) {
-                Log.d(TAG, "Semantic Command Match! '$text' → ${semanticMatch.commandType} (similarity=${String.format("%.3f", semanticMatch.similarity)})")
-                withContext(Dispatchers.Main) {
-                    AssistantUIBridge.emitTelemetry(TelemetryEvent(
-                        source = "Semantic Command Matcher",
-                        latencyMs = 0L,
-                        routingPath = "Semantic Embedding → Direct Execute",
-                        rawAction = "${semanticMatch.commandType} (sim=${String.format("%.2f", semanticMatch.similarity)})"
-                    ))
-                    val command = extractParametersFromQuery(semanticMatch.commandType, text)
-                    ActionExecutor(context).execute(command)
-                    service.isMidFlow = false
-                    service.hideOverlayWithDelay()
-                }
-                return@withContext
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "SemanticCommandMatcher error (non-fatal, falling through)", e)
-        }
-
         val responded = AtomicBoolean(false)
         val thinkingJob = service.serviceScope.launch {
             delay(800)
@@ -346,10 +322,8 @@ object JagrutExecutionEngine {
                     }
                     return success
                 } else {
-                    Log.d(TAG, "Cache Miss! Handing over to DynamicAgentEngine for: '$text'")
-                    service.isMidFlow = false
-                    DynamicAgentEngine.startDynamicExecution(context, text)
-                    return true
+                    Log.w(TAG, "Cache Miss! No steps generated in AUTOMATION_SEQUENCE payload for: '$text'")
+                    return false
                 }
             }
 

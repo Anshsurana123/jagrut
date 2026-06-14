@@ -49,50 +49,45 @@ Jago uses a hierarchical routing architecture designed to process speech command
 
 ```mermaid
 graph TD
-    subgraph WakeWordService [WakeWordService (Foreground Service)]
-        AudioRecord[AudioRecord 16kHz PCM] --> EnergyGate[Energy Gate / Silence Rejection]
+    subgraph WakeWordService ["WakeWordService (Foreground Service)"]
+        AudioRecord["AudioRecord 16kHz PCM"] --> EnergyGate["Energy Gate / Silence Rejection"]
         EnergyGate --> MelSpectrogram[melspectrogram.onnx]
         MelSpectrogram --> EmbeddingModel[embedding_model.onnx]
-        EmbeddingModel --> WakeWordClassifier[jaag_ruut.onnx LSTM Classifier]
-        WakeWordClassifier --> RollingHit[Rolling Hit Counter (3/4 frames >= 0.85)]
+        EmbeddingModel --> WakeWordClassifier["jaag_ruut.onnx LSTM Classifier"]
+        WakeWordClassifier --> RollingHit["Rolling Hit Counter (3/4 frames >= 0.85)"]
         RollingHit -->|Detected / Double Volume Down| STTSelect{Speech Adapter Selection}
     end
 
-    subgraph SpeechToText [Speech-to-Text Adapters]
-        STTSelect -->|English| AndroidSTT[Android STT Adapter]
-        STTSelect -->|Hindi / Capturing Field| SarvamSTT[Sarvam STT Adapter]
-        STTSelect -->|Offline Fallback| VoskSTT[Vosk Offline STT Adapter]
+    subgraph SpeechToText ["Speech-to-Text Adapters"]
+        STTSelect -->|English| AndroidSTT["Android STT Adapter"]
+        STTSelect -->|Hindi / Capturing Field| SarvamSTT["Sarvam STT Adapter"]
+        STTSelect -->|Offline Fallback| VoskSTT["Vosk Offline STT Adapter"]
     end
 
-    AndroidSTT --> Translators[Translation & Matching Pipeline]
+    AndroidSTT --> Translators["Translation & Matching Pipeline"]
     SarvamSTT --> Translators
     VoskSTT --> Translators
 
-    subgraph Translators [Translation & Matching Pipeline]
-        HindiTrans[Hindi/Hinglish Translator] --> FuzzyMatch[Fuzzy Command Matcher (Synonyms & Levenshtein)]
-        FuzzyMatch -->|Cache Hit| ExecuteDirect[Direct Action Executor]
-        FuzzyMatch -->|Cache Miss| SemanticMatch[Semantic Command Matcher (Local Cosine Similarity)]
-        SemanticMatch -->|Similarity >= 0.82| ExecuteDirect
-        SemanticMatch -->|Cache Miss| GeminiIntentCompiler[Gemini Intent Compiler]
+    subgraph Translators ["Translation & Matching Pipeline"]
+        HindiTrans["Hindi/Hinglish Translator"] --> FuzzyMatch["Fuzzy Command Matcher (Synonyms & Levenshtein)"]
+        FuzzyMatch -->|Cache Hit| ExecuteDirect["Direct Action Executor"]
+        FuzzyMatch -->|Cache Miss| GeminiIntentCompiler["Gemini Intent Compiler"]
     end
 
-    GeminiIntentCompiler -->|NATIVE_INTENT / REFLECTIVE_CALL / SHELL_COMMAND| GeminiExecutor[Gemini Executor]
+    GeminiIntentCompiler -->|NATIVE_INTENT / REFLECTIVE_CALL / SHELL_COMMAND| GeminiExecutor["Gemini Executor"]
     GeminiIntentCompiler -->|AUTOMATION_SEQUENCE| AutomationSelect{Macro Cache Check}
-    
-    AutomationSelect -->|Macro Cached| PlayMacro[JagoAccessibilityService (Play Macro)]
-    AutomationSelect -->|Macro Miss| DynamicAgent[DynamicAgentEngine (Closed-Loop GUI Explorer)]
+    AutomationSelect -->|Macro Cached / Generated Steps| PlayMacro["JagoAccessibilityService (Play Macro)"]
 
     GeminiIntentCompiler -->|UNKNOWN / Conversational| FallbackSelect{Conversational Fallback}
     
-    FallbackSelect -->|Sarvam Chat API| SarvamChat[Sarvam AI (sarvam-30b)]
-    FallbackSelect -->|Sarvam Fail / Offline| GeminiChat[Gemini 3.5 Flash Chat]
+    FallbackSelect -->|Sarvam Chat API| SarvamChat["Sarvam AI (sarvam-30b)"]
+    FallbackSelect -->|Sarvam Fail / Offline| GeminiChat["Gemini 3.5 Flash Chat"]
 
-    DynamicAgent --> PlayMacro
-    GeminiExecutor --> ActionPlayback[Android System Actions / Reflection / Shell Sandbox]
+    GeminiExecutor --> ActionPlayback["Android System Actions / Reflection / Shell Sandbox"]
     PlayMacro --> ActionPlayback
 
-    subgraph TTS [Bilingual TTS Output]
-        SpeechOutput[JagoTTS Hybrid Voice Output]
+    subgraph TTS ["Bilingual TTS Output"]
+        SpeechOutput["JagoTTS Hybrid Voice Output"]
         SarvamChat --> SpeechOutput
         GeminiChat --> SpeechOutput
         ActionPlayback --> SpeechOutput
@@ -115,27 +110,19 @@ Jago runs a highly optimized, three-stage **ONNX Runtime** pipeline in a persist
 ### 🧠 2. Hierarchical Hybrid NLU Pipeline
 When a command is captured, Jago routes it through a multi-tiered parsing pipeline:
 1. **Fuzzy Command Matching** (`FuzzyCommandMatcher`): Matches exact and common Hinglish commands instantly (~1ms). Uses a synonym dictionary mapping Hindi/Hinglish words to canonical English seed words (e.g. `"batti"` -> `"flashlight"`, `"kam"` -> `"decrease"`) and applies token-level Levenshtein distance (threshold = 2) to correct STT errors.
-2. **Semantic Similarity Matching** (`SemanticCommandMatcher`): 
-   - Compares user input against system command vectors using local cosine similarity calculations.
-   - Embeddings are generated dynamically via the Gemini embedding API (`gemini-embedding-001`).
-   - Includes an **Incompatibility Filter** (`isIncompatibleMatch`) that identifies removal/deletion verbs (`"remove"`, `"delete"`, `"clear"`, etc.) and prevents false-positive matches to constructive actions.
-3. **Multimodal Intent Compiler** (`JagrutExecutionEngine`):
+2. **Multimodal Intent Compiler** (`JagrutExecutionEngine`):
    - Compiles unresolved commands into structured JSON execution schemas using Gemini.
    - Maps the intent dynamically to one of:
      - `NATIVE_INTENT`: Direct Android intent actions (e.g. opening settings, launching apps).
      - `REFLECTIVE_CALL`: Whitelisted Java reflection calls on Android system services (e.g. adjusting volume or toggling DND).
      - `SHELL_COMMAND`: Shell commands executed directly in the secure application sandbox.
      - `AUTOMATION_SEQUENCE`: Multi-step accessibility macros.
-4. **Conversational Fallback**: If no direct device action is possible, the query is answered by **Sarvam AI's Conversational API (`sarvam-30b`)** or falls back to **Gemini 3.5 Flash** if the connection is slow or fails.
+3. **Conversational Fallback**: If no direct device action is possible, the query is answered by **Sarvam AI's Conversational API (`sarvam-30b`)** or falls back to **Gemini 3.5 Flash** if the connection is slow or fails.
 
 ### ♿ 3. Accessibility-Powered UI Automation
 Jago acts as a virtual user, driving interfaces directly using the Android Accessibility APIs:
 - **State-Aware Click & Tap** (`performRobustClick`): Executes click actions by navigating the layout tree. If standard node clicks fail, it dispatches an absolute screen coordinate gesture fallback using current display metrics.
 - **Visual Macro Recorder**: Intercepts accessibility events (clicks, text entries) to record custom reproducible sequences. It stores screen-relative percentages (`xPercent`, `yPercent`) to adapt to different layouts and screen sizes, supporting mid-macro app transitions.
-- **Closed-Loop Visual Agent** (`DynamicAgentEngine`):
-   - When a macro is not pre-recorded, a closed-loop agent takes control.
-   - It captures interactive elements (`ScreenElement`) from the live layout tree, presents the parsed list to Gemini, and executes sequential steps (`CLICK`, `TEXT_ENTRY`, `BACK`, `WAIT`, `FINISH`) dynamically.
-   - Once the goal is accomplished, the learned sequence is embedded and stored locally and in the MongoDB Atlas cloud.
 - **WhatsApp Heuristics (Anti-Misclick)**:
    - Includes custom, robust resolvers specifically for WhatsApp:
      - `findWhatsAppProfileCardRow`: Bypasses dynamic layout shifts (like temporary notification banners at the top of settings) to locate the main profile settings trigger.
@@ -193,10 +180,8 @@ app/src/main/
 │   ├── ResearchActivity.kt        # UI for research syncing & PDF viewing
 │   ├── JagoApp.kt                 # Application class: initialises TTS, MongoDB, and Bhashini
 │   ├── logic/
-│   │   ├── JagrutExecutionEngine.kt # Central router (Semantic Cache -> Fuzzy -> Semantic Matching -> Gemini)
+│   │   ├── JagrutExecutionEngine.kt # Central router (Semantic Cache -> Fuzzy -> Gemini)
 │   │   ├── ActionExecutor.kt      # Translates device actions to system functions
-│   │   ├── SemanticCommandMatcher.kt # Pre-cached Gemini embeddings comparison
-│   │   ├── DynamicAgentEngine.kt  # Gemini-driven closed-loop visual GUI agent
 │   │   ├── GeminiExecutor.kt      # Runs NATIVE_INTENT, REFLECTIVE_CALL, SHELL_COMMAND, or macros
 │   │   ├── GeminiHistoryEngine.kt # Saves execution logs to SharedPreferences
 │   │   ├── MongoDBClient.kt       # Secure DNS-over-HTTPS SRV connection resolver & Vector Search
@@ -338,10 +323,6 @@ To verify all system features, follow these testing guidelines on a physical dev
 ### 5. Conversational Fallbacks
 *Say "Tell me a joke" or ask general knowledge.*  
 **Expected**: The request is routed to Sarvam AI (English/Hindi) or Gemini 3.5 Flash, returning a concise 1-2 sentence voice reply.
-
-### 6. Dynamic Agent Explorer
-*Say "Search for headphones on Amazon" (when no macro exists).*  
-**Expected**: Jago launches Amazon, scans interactive elements, decides steps (types "headphones", clicks search), executes the sequence, and caches the macro embedding to the local db and MongoDB Atlas.
 
 ---
 

@@ -27,7 +27,7 @@ data class Command(
 )
 
 enum class CommandType {
-    CALL, OPEN_WHATSAPP, LOCK_DEVICE, OPEN_APP, 
+    CALL, OPEN_WHATSAPP, OPEN_INCOGNITO_TAB, LOCK_DEVICE, OPEN_APP, 
     FLASHLIGHT_ON, FLASHLIGHT_OFF, VOLUME_UP, VOLUME_DOWN, VOLUME_MUTE,
     BRIGHTNESS_INCREASE, BRIGHTNESS_DECREASE, BATTERY_CHECK,
     OPEN_WIFI_SETTINGS, OPEN_BLUETOOTH_SETTINGS,
@@ -80,6 +80,27 @@ class CommandParser {
         "WIFI" to listOf("wifi"),
         "BLUETOOTH" to listOf("bluetooth"),
         "CALL" to listOf("call", "dial", "ring"),
+        "OPEN_INCOGNITO_TAB" to listOf(
+            "open incognito tab on chrome",
+            "open incognito tab in chrome",
+            "open incognito tab",
+            "open private tab",
+            "open incognito mode",
+            "open private mode",
+            "incognito tab",
+            "private tab",
+            "incognito mode",
+            "private mode",
+            "open chrome incognito",
+            "chrome incognito",
+            "incognito tab on chrome",
+            "private tab on chrome",
+            "incognito kholo",
+            "private tab kholo",
+            "incognito window",
+            "private window",
+            "open private window"
+        ),
         "OPEN_APP" to listOf("open", "launch", "start", "run"),
         "MESSAGE" to listOf("message", "text", "send"),
         "MEDIA_PLAY" to listOf("play", "resume"),
@@ -659,7 +680,7 @@ class CommandParser {
         }
 
         // 1. Detect HIGH-SPECIFICITY intents first (to avoid collisions like 'screen')
-        val priority1Keys = listOf("SET_LANGUAGE", "READ_NOTIFICATIONS", "READ_SCREEN", "RECENT_PHOTO", "REMINDER", "SCREENSHOT", "MEDIA_PLAY", "MEDIA_PAUSE", "MEDIA_NEXT", "MEDIA_PREV", "STOP_MEDIA", "FLASHLIGHT", "OPEN_APP", "CLOSE_APP", "CALL", "MESSAGE", "DND", "SILENT", "FOCUS", "PHOTO_ACTION", "SEARCH", "SCHEDULE_VIEW", "MAPS", "OPEN_CALENDAR", "OPEN_CONTACTS", "OPEN_CLOCK", "OPEN_SETTINGS", "CLIPBOARD_COPY", "CLIPBOARD_READ", "SHARE_TEXT", "DIALER", "REDIAL", "SPEAKER", "TRIGGER_WORKFLOW")
+        val priority1Keys = listOf("SET_LANGUAGE", "READ_NOTIFICATIONS", "READ_SCREEN", "RECENT_PHOTO", "REMINDER", "SCREENSHOT", "MEDIA_PLAY", "MEDIA_PAUSE", "MEDIA_NEXT", "MEDIA_PREV", "STOP_MEDIA", "FLASHLIGHT", "OPEN_INCOGNITO_TAB", "OPEN_APP", "CLOSE_APP", "CALL", "MESSAGE", "DND", "SILENT", "FOCUS", "PHOTO_ACTION", "SEARCH", "SCHEDULE_VIEW", "MAPS", "OPEN_CALENDAR", "OPEN_CONTACTS", "OPEN_CLOCK", "OPEN_SETTINGS", "CLIPBOARD_COPY", "CLIPBOARD_READ", "SHARE_TEXT", "DIALER", "REDIAL", "SPEAKER", "TRIGGER_WORKFLOW")
         var matchedIntentKey: String? = null
         var matchedSeed: String? = null
 
@@ -793,6 +814,7 @@ class CommandParser {
                 if (payload.isNotEmpty()) Command(CommandType.CALL, contactName = payload)
                 else Command(CommandType.UNKNOWN)
             }
+            "OPEN_INCOGNITO_TAB" -> Command(CommandType.OPEN_INCOGNITO_TAB)
             "OPEN_APP" -> {
                 // Special check for WhatsApp
                 if (cleanText.contains("whatsapp")) return Command(CommandType.OPEN_WHATSAPP)
