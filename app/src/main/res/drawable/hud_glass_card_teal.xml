@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Neural HUD Glass Card — standard glass component -->
+<!-- Glass Card with teal-tinted border — used for data module cards -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
@@ -8,12 +8,12 @@
         </shape>
     </item>
     <item
-        android:left="1dp"
-        android:top="1dp"
-        android:right="1dp"
-        android:bottom="1dp">
+        android:left="1.5dp"
+        android:top="1.5dp"
+        android:right="1.5dp"
+        android:bottom="1.5dp">
         <shape android:shape="rectangle">
-            <solid android:color="#0FFFFFFF" />
+            <solid android:color="#12FFFFFF" />
             <corners android:radius="9dp" />
         </shape>
     </item>

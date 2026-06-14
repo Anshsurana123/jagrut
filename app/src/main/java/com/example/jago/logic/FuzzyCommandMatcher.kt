@@ -232,13 +232,19 @@ object FuzzyCommandMatcher {
             }
 
             val hasMatch = inputTokens.any { inputToken ->
+                val minLen = minOf(inputToken.length, seedToken.length)
+                val maxAllowedDistance = when {
+                    minLen <= 3 -> 0
+                    minLen <= 6 -> 1
+                    else -> TOKEN_FUZZY_THRESHOLD
+                }
                 // Exact match
                 inputToken == seedToken ||
                 // Starts-with match (handles "flashligh" → "flashlight")
-                inputToken.startsWith(seedToken) || seedToken.startsWith(inputToken) ||
+                (inputToken.length >= 3 && seedToken.length >= 3 && (inputToken.startsWith(seedToken) || seedToken.startsWith(inputToken))) ||
                 // Fuzzy match (Levenshtein)
                 (inputToken.length >= 3 && seedToken.length >= 3 &&
-                    FuzzyMatcher.calculateDistance(inputToken, seedToken) <= TOKEN_FUZZY_THRESHOLD)
+                    FuzzyMatcher.calculateDistance(inputToken, seedToken) <= maxAllowedDistance)
             }
 
             if (hasMatch) matchedTokens++
@@ -249,7 +255,7 @@ object FuzzyCommandMatcher {
         } else 0f
 
         // Strategy 2: Substring containment (for multi-word seeds)
-        val containsScore = if (seedPhrase.length >= 3 && expandedInput.contains(seedPhrase)) {
+        val containsScore = if (seedPhrase.length >= 3 && expandedInput.containsWord(seedPhrase)) {
             1.0f
         } else {
             0f
@@ -289,5 +295,9 @@ object FuzzyCommandMatcher {
             .split(Regex("\\s+"))
             .map { it.trim() }
             .filter { it.isNotEmpty() }
+    }
+
+    private fun String.containsWord(word: String): Boolean {
+        return Regex("\\b${Regex.escape(word)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(this)
     }
 }

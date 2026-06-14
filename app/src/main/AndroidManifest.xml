@@ -133,6 +133,29 @@
             android:theme="@style/Theme.JagoAssistant" />
 
         <activity
+            android:name=".ResearchActivity"
+            android:exported="false"
+            android:theme="@style/Theme.JagoAssistant" />
+
+        <receiver
+            android:name=".service.ResearchReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.jago.ADD_RESEARCH" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.example.jago.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <activity
             android:name=".ui.CameraActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.NoActionBar"

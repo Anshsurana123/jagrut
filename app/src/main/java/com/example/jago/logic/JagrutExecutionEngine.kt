@@ -168,6 +168,10 @@ object JagrutExecutionEngine {
         }
     }
 
+    private fun String.containsWord(word: String): Boolean {
+        return Regex("\\b${Regex.escape(word)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(this)
+    }
+
     private fun looksLikeDeviceAction(text: String): Boolean {
         val lower = text.lowercase().trim()
         val verbs = listOf(
@@ -184,7 +188,7 @@ object JagrutExecutionEngine {
             "playlist", "spotify", "file", "folder", "directory", "download", "storage", "memory",
             "cpu", "process", "device", "phone"
         )
-        return verbs.any { lower.contains(it) } || nouns.any { lower.contains(it) }
+        return verbs.any { lower.containsWord(it) } || nouns.any { lower.containsWord(it) }
     }
 
     private suspend fun handleDeviceAction(

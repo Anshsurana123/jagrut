@@ -66,7 +66,7 @@ enum class CommandType {
     OPEN_DIALER, REDIAL, SPEAKER_PHONE,
     TOGGLE_AUTO_ROTATE, TOGGLE_HOTSPOT_ON, TOGGLE_HOTSPOT_OFF, TOGGLE_LOCATION,
     STOP_MEDIA, VOLUME_MAX, BRIGHTNESS_MAX,
-    UNKNOWN
+    TRIGGER_N8N_WORKFLOW, UNKNOWN
 }
 
 class CommandParser {
@@ -158,7 +158,8 @@ class CommandParser {
         "LOCATION" to listOf("location on", "location off", "gps on", "gps off", "location chalu", "location band", "gps enable", "gps disable"),
         "STOP_MEDIA" to listOf("stop music", "stop playing", "band karo music", "music band", "stop song", "gaana band", "media stop"),
         "VOLUME_MAX" to listOf("full volume", "volume max", "volume poora", "maximum volume", "volume full", "poora volume"),
-        "BRIGHTNESS_MAX" to listOf("full brightness", "brightness max", "brightness poora", "maximum brightness", "poori brightness", "brightness full")
+        "BRIGHTNESS_MAX" to listOf("full brightness", "brightness max", "brightness poora", "maximum brightness", "poori brightness", "brightness full"),
+        "TRIGGER_WORKFLOW" to listOf("run workflow", "trigger workflow", "start workflow", "execute workflow")
     )
     
     // ... existing actionModifiers ...
@@ -523,10 +524,11 @@ class CommandParser {
             ))
         }
 
-        val hasCamera = listOf("photo", "video", "picture", "camera", "shutter", "pic").any { lowerText.contains(it) }
-        val hasShare = listOf("send", "share", "whatsapp", "text").any { lowerText.contains(it) }
+        val hasCamera = listOf("photo", "video", "picture", "camera", "shutter", "pic").any { lowerText.containsWord(it) || lowerText.containsWord(it + "s") }
+        val hasShare = listOf("send", "share", "whatsapp", "text").any { lowerText.containsWord(it) }
+        val isSearchQuery = lowerText.startsWith("search") || lowerText.startsWith("find") || lowerText.startsWith("look up")
         
-        if (lowerText.contains("video") || (hasCamera && hasShare)) {
+        if (((lowerText.containsWord("video") || lowerText.containsWord("videos")) && !isSearchQuery) || (hasCamera && hasShare)) {
             Log.d("CommandParser", "Bypassing local parser for compound/video query: $text")
             return listOf(Command(CommandType.UNKNOWN))
         }
@@ -617,11 +619,11 @@ class CommandParser {
         
         // 0. Priority Intent Lock - Spotify Playback
         // "play timeless on spotify", "put on believer on spotify", "start spotify"
-        if (cleanText.contains("spotify") && (cleanText.contains("play") || cleanText.contains("put on") || cleanText.contains("start"))) {
+        if (cleanText.containsWord("spotify") && (cleanText.containsWord("play") || cleanText.containsWord("put on") || cleanText.containsWord("start"))) {
             Log.d("CommandParser", "Priority intent locked -> PLAY_SPOTIFY")
             var query = cleanText
             val seeds = listOf("play", "put on", "start", "on spotify", "in spotify", "spotify", "jago")
-            seeds.forEach { query = query.replace(it, "") }
+            seeds.forEach { query = query.replace(Regex("\\b${Regex.escape(it)}\\b", RegexOption.IGNORE_CASE), "") }
             query = query.trim()
             
             return Command(type = CommandType.PLAY_SPOTIFY, messageBody = query)
@@ -630,7 +632,7 @@ class CommandParser {
         // 0. Priority Intent Lock - ALARM (Detects "alarm", "wake", "wake me")
         // This MUST happen before any numeric or fuzzy parsing to prevent AI fallback
         val alarmSeeds = intentSeeds["ALARM"] ?: emptyList()
-        if (alarmSeeds.any { cleanText.contains(it) }) {
+        if (alarmSeeds.any { cleanText.containsWord(it) }) {
              Log.d("CommandParser", "Priority intent locked -> ALARM")
              return parseAlarm(cleanText)
         }
@@ -657,7 +659,7 @@ class CommandParser {
         }
 
         // 1. Detect HIGH-SPECIFICITY intents first (to avoid collisions like 'screen')
-        val priority1Keys = listOf("SET_LANGUAGE", "READ_NOTIFICATIONS", "READ_SCREEN", "RECENT_PHOTO", "REMINDER", "SCREENSHOT", "MEDIA_PLAY", "MEDIA_PAUSE", "MEDIA_NEXT", "MEDIA_PREV", "STOP_MEDIA", "FLASHLIGHT", "OPEN_APP", "CLOSE_APP", "CALL", "MESSAGE", "DND", "SILENT", "FOCUS", "PHOTO_ACTION", "SEARCH", "SCHEDULE_VIEW", "MAPS", "OPEN_CALENDAR", "OPEN_CONTACTS", "OPEN_CLOCK", "OPEN_SETTINGS", "CLIPBOARD_COPY", "CLIPBOARD_READ", "SHARE_TEXT", "DIALER", "REDIAL", "SPEAKER")
+        val priority1Keys = listOf("SET_LANGUAGE", "READ_NOTIFICATIONS", "READ_SCREEN", "RECENT_PHOTO", "REMINDER", "SCREENSHOT", "MEDIA_PLAY", "MEDIA_PAUSE", "MEDIA_NEXT", "MEDIA_PREV", "STOP_MEDIA", "FLASHLIGHT", "OPEN_APP", "CLOSE_APP", "CALL", "MESSAGE", "DND", "SILENT", "FOCUS", "PHOTO_ACTION", "SEARCH", "SCHEDULE_VIEW", "MAPS", "OPEN_CALENDAR", "OPEN_CONTACTS", "OPEN_CLOCK", "OPEN_SETTINGS", "CLIPBOARD_COPY", "CLIPBOARD_READ", "SHARE_TEXT", "DIALER", "REDIAL", "SPEAKER", "TRIGGER_WORKFLOW")
         var matchedIntentKey: String? = null
         var matchedSeed: String? = null
 
@@ -678,12 +680,12 @@ class CommandParser {
                          continue 
                      }
                      // Rule 2: If seed is a noun ("photo", "picture"), require an action verb
-                     if ((seed == "photo" || seed == "picture") && cameraActionVerbs.none { cleanText.contains(it) }) {
-                         continue
+                     if ((seed == "photo" || seed == "picture") && cameraActionVerbs.none { cleanText.containsWord(it) }) {
+                          continue
                      }
                 }
 
-                if (cleanText.contains(seed)) {
+                if (cleanText.containsWord(seed)) {
                     matchedIntentKey = key
                     matchedSeed = seed
                     if (key == "SCREENSHOT") Log.d("CommandParser", "Screenshot intent detected")
@@ -699,7 +701,7 @@ class CommandParser {
             for (key in priority2Keys) {
                 val seeds = intentSeeds[key] ?: continue
                 for (seed in seeds) {
-                    if (cleanText.contains(seed)) {
+                    if (cleanText.containsWord(seed)) {
                         matchedIntentKey = key
                         matchedSeed = seed
                         if (key == "BRIGHTNESS") Log.d("CommandParser", "Brightness intent detected")
@@ -713,7 +715,7 @@ class CommandParser {
         // 3. Detect CONTEXTUAL variations if no direct seeds matched AND no numeric value
         if (matchedIntentKey == null && numericValue == null) {
             for ((phrase, type) in contextualPhrases) {
-                if (cleanText.contains(phrase)) {
+                if (cleanText.containsWord(phrase)) {
                     Log.d("CommandParser", "Contextual phrase detected: '$phrase'")
                     Log.d("CommandParser", "Resolved intent: $type")
                     if (type == CommandType.BRIGHTNESS_INCREASE || type == CommandType.BRIGHTNESS_DECREASE) {
@@ -738,7 +740,7 @@ class CommandParser {
         var matchedModifier: String? = null
         for ((modKey, modValues) in actionModifiers) {
             for (value in modValues) {
-                if (cleanText.contains(value)) {
+                if (cleanText.containsWord(value)) {
                     matchedModifier = modKey
                     break
                 }
@@ -753,7 +755,7 @@ class CommandParser {
         // 3. Resolve CommandType
         return when (matchedIntentKey) {
             "FLASHLIGHT" -> {
-                if (matchedModifier == "QUERY" || (cleanText.contains("level") && !cleanText.contains("set"))) Command(CommandType.QUERY_FLASHLIGHT)
+                if (matchedModifier == "QUERY" || (cleanText.containsWord("level") && !cleanText.containsWord("set"))) Command(CommandType.QUERY_FLASHLIGHT)
                 else if (matchedModifier == "OFF") Command(CommandType.FLASHLIGHT_OFF, numericValue = numericValue, isRelative = isRelative)
                 else Command(CommandType.FLASHLIGHT_ON, numericValue = numericValue, isRelative = isRelative)
             }
@@ -1071,6 +1073,13 @@ class CommandParser {
             "STOP_MEDIA" -> Command(CommandType.STOP_MEDIA)
             "VOLUME_MAX" -> Command(CommandType.VOLUME_MAX)
             "BRIGHTNESS_MAX" -> Command(CommandType.BRIGHTNESS_MAX)
+            "TRIGGER_WORKFLOW" -> {
+                var payload = cleanText.removePrefix(matchedSeed ?: "").trim()
+                val parts = payload.split(Regex("\\s+with\\s+", RegexOption.IGNORE_CASE), 2)
+                val workflowName = parts[0].trim()
+                val param = if (parts.size > 1) parts[1].trim() else null
+                Command(CommandType.TRIGGER_N8N_WORKFLOW, contactName = workflowName, messageBody = param)
+            }
             else -> {
                 // Try parsing as Math
                 val mathCommand = parseMath(cleanText)
@@ -1160,9 +1169,9 @@ class CommandParser {
             }
         } else {
             // Legacy/Simple detection
-            if (query.contains("youtube")) {
+            if (query.containsWord("youtube")) {
                 platform = "youtube"
-            } else if (query.contains("google")) {
+            } else if (query.containsWord("google")) {
                 platform = "google"
             }
         }
@@ -1170,11 +1179,11 @@ class CommandParser {
         // 2. Extract Query Cleanup
         // Remove keywords
         val seeds = intentSeeds["SEARCH"] ?: emptyList()
-        seeds.forEach { query = query.replace(it, "") }
+        seeds.forEach { query = query.replace(Regex("\\b${Regex.escape(it)}\\b", RegexOption.IGNORE_CASE), "") }
         
         // Remove platform names ONLY if we did legacy detection or if they are redundant
         if (match == null) {
-             query = query.replace("youtube", "").replace("google", "")
+             query = query.replace(Regex("\\b(youtube|google)\\b", RegexOption.IGNORE_CASE), "")
         }
         
         // Remove specific connectors (in case "on" wasn't caught or "in" is used)
@@ -1272,7 +1281,7 @@ class CommandParser {
         if (triggerMillis == null && !missingTimeUnit) {
             val timeMap = mapOf("morning" to 9, "afternoon" to 14, "evening" to 18, "night" to 21)
             for ((key, hour) in timeMap) {
-                if (cleanText.contains(key)) {
+                if (cleanText.containsWord(key)) {
                     val calendar = java.util.Calendar.getInstance()
                     calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
                     calendar.set(java.util.Calendar.MINUTE, 0)
@@ -1383,7 +1392,7 @@ class CommandParser {
         val mathKeywords = listOf("plus", "add", "minus", "subtract", "into", "times", "multiply", "divided by", "over", "percent of", "power", "raised to", "square root", "bracket")
         val mathSymbols = listOf("+", "-", "*", "/", "%", "^", "(", ")")
         
-        if (mathKeywords.none { text.contains(it) } && mathSymbols.none { text.contains(it) }) return null
+        if (mathKeywords.none { text.containsWord(it) } && mathSymbols.none { text.contains(it) }) return null
 
         var expression = text
         // Normalize operators & brackets
@@ -1492,20 +1501,20 @@ class CommandParser {
     private fun resolveMessageCommand(contactName: String, messageBody: String?): Command {
         val contactLower = contactName.lowercase()
         val unsupportedPlatforms = listOf("instagram", "insta", "snapchat", "snap", "messenger", "facebook", "fb", "discord", "slack", "signal", "twitter", "x")
-        if (unsupportedPlatforms.any { contactLower.contains(it) }) {
+        if (unsupportedPlatforms.any { contactLower.containsWord(it) }) {
             return Command(CommandType.UNKNOWN)
         }
 
         var finalContact = contactName
         var finalType = CommandType.SEND_WHATSAPP_MESSAGE
 
-        if (contactLower.contains("telegram")) {
+        if (contactLower.containsWord("telegram")) {
             finalType = CommandType.SEND_TELEGRAM_MESSAGE
             finalContact = contactName
                 .replace(Regex("(?i)\\b(?:send\\s+)?(?:a\\s+)?telegram\\s*(?:message\\s*)?(?:to\\s*)?"), "")
                 .replace(Regex("(?i)\\bon\\s+telegram\\b"), "")
                 .trim()
-        } else if (contactLower.contains("email") || contactLower.contains("mail")) {
+        } else if (contactLower.containsWord("email") || contactLower.containsWord("mail")) {
             finalType = CommandType.SEND_EMAIL
             finalContact = contactName
                 .replace(Regex("(?i)\\b(?:send\\s+)?(?:an\\s+)?(?:email|mail)\\s*(?:message\\s*)?(?:to\\s*)?"), "")
@@ -1536,5 +1545,9 @@ class CommandParser {
         return clean.replace(Regex("[^a-z0-9 '.+\\-*/%^():]"), "") 
                     .replace(Regex("\\s+"), " ")
                     .trim()
+    }
+
+    private fun String.containsWord(word: String): Boolean {
+        return Regex("\\b${Regex.escape(word)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(this)
     }
 }

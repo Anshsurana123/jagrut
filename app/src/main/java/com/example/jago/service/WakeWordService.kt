@@ -27,6 +27,9 @@ import com.example.jago.service.speech.SpeechAdapter
 import kotlinx.coroutines.*
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import org.json.JSONObject
+import android.util.Base64
+import com.example.jago.ResearchActivity
 
 
 class WakeWordService : Service() {
@@ -413,6 +416,83 @@ class WakeWordService : Service() {
         if (translatedText != text) {
             Log.d("Jago", "Hindi translated: '$text' \u2192 '$translatedText'")
         }
+
+        // Intercept Research Command
+        val researchRegex = Regex("research (?:on|about|for)\\s+(.+)", RegexOption.IGNORE_CASE)
+        val matchResult = researchRegex.find(translatedText)
+        if (matchResult != null) {
+            val topic = matchResult.groupValues[1].trim()
+            if (topic.isNotEmpty()) {
+                handleOnDemandResearch(topic)
+                return
+            }
+        }
+
+        // Intercept Expense Command
+        val expenseRegex = Regex("(?:record|track|add)\\s+expense\\s+(.+)", RegexOption.IGNORE_CASE)
+        val expenseMatch = expenseRegex.find(translatedText)
+        if (expenseMatch != null) {
+            val details = expenseMatch.groupValues[1].trim()
+            if (details.isNotEmpty()) {
+                handleVoiceExpense(translatedText)
+                return
+            }
+        } else if (translatedText.lowercase().contains("expense")) {
+            handleVoiceExpense(translatedText)
+            return
+        }
+
+        // Intercept Email Command
+        val hasN8n = com.example.jago.logic.ResearchHistoryEngine.getN8nServerUrl(this).isNotEmpty()
+        if (hasN8n) {
+            val emailRegex = Regex("(?:send\\s+)?email\\s+(.+)", RegexOption.IGNORE_CASE)
+            val emailMatch = emailRegex.find(translatedText)
+            if (emailMatch != null) {
+                handleVoiceEmail(translatedText)
+                return
+            }
+
+            // Intercept Workflow Trigger Command
+            val workflowRegex = Regex("(?:run|trigger|start|execute)\\s+workflow\\s+(.+)", RegexOption.IGNORE_CASE)
+            val workflowMatch = workflowRegex.find(translatedText)
+            if (workflowMatch != null) {
+                val fullPayload = workflowMatch.groupValues[1].trim()
+                val parts = fullPayload.split(Regex("\\s+with\\s+", RegexOption.IGNORE_CASE), 2)
+                val workflowName = parts[0].trim()
+                val param = if (parts.size > 1) parts[1].trim() else null
+                handleN8nWorkflow(workflowName, param, translatedText)
+                return
+            }
+
+            // Intercept Telegram Command
+            val tgRegex1 = Regex("(?:send|text|message)\\s+(?:a\\s+)?(?:telegram\\s+)?(?:message\\s+)?to\\s+(.+)\\s+saying\\s+(.+)", RegexOption.IGNORE_CASE)
+            val tgRegex2 = Regex("(?:send|text|message)\\s+(.+)\\s+to\\s+(.+)\\s+on\\s+telegram", RegexOption.IGNORE_CASE)
+            val tgNoSayingRegex = Regex("(?:send|text|message)\\s+(?:a\\s+)?(?:telegram\\s+)?(?:message\\s+)?to\\s+(.+)", RegexOption.IGNORE_CASE)
+            
+            val tgMatch1 = tgRegex1.find(translatedText)
+            val tgMatch2 = tgMatch1 ?: tgRegex2.find(translatedText)
+            
+            if (tgMatch2 != null) {
+                val contact = if (tgMatch2 === tgMatch1) tgMatch2.groupValues[1].trim() else tgMatch2.groupValues[2].trim()
+                val msg = if (tgMatch2 === tgMatch1) tgMatch2.groupValues[2].trim() else tgMatch2.groupValues[1].trim()
+                var cleanContact = contact
+                if (cleanContact.endsWith(" on telegram", ignoreCase = true)) {
+                    cleanContact = cleanContact.removeSuffix(" on telegram").trim()
+                }
+                sendTelegramMessageViaN8n(cleanContact, msg, translatedText)
+                return
+            }
+
+            val tgNoSayingMatch = tgNoSayingRegex.find(translatedText)
+            if (tgNoSayingMatch != null) {
+                var contact = tgNoSayingMatch.groupValues[1].trim()
+                if (contact.endsWith(" on telegram", ignoreCase = true)) {
+                    contact = contact.removeSuffix(" on telegram").trim()
+                }
+                sendTelegramMessageViaN8n(contact, null, translatedText)
+                return
+            }
+        }
         
         if (isWaitingForReminderTime) {
             handleReminderTimeFollowUp(translatedText)
@@ -590,6 +670,324 @@ class WakeWordService : Service() {
                 Log.d("WakeWordService", "No local command or custom macro matched \u2192 Routing to Jagrut Execution Engine")
                 serviceScope.launch {
                     com.example.jago.logic.JagrutExecutionEngine.route(this@WakeWordService, cleanText)
+                }
+            }
+        }
+    }
+
+    private fun handleOnDemandResearch(topic: String) {
+        isMidFlow = true
+        com.example.jago.ui.AssistantUIBridge.updateStatus("Researching...")
+        com.example.jago.ui.AssistantUIBridge.updatePartial("Topic: $topic")
+        
+        val displayTitle = "Research on $topic"
+        JagoTTS.speak("Sure, starting research on $topic. I will download the PDF once it is completed.")
+        
+        // Dismiss the overlay and resume wake word immediately so research runs in the background without blocking the screen
+        hideOverlayWithDelay()
+        isMidFlow = false
+        
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val serverUrl = com.example.jago.logic.ResearchHistoryEngine.getN8nServerUrl(this@WakeWordService)
+                
+                val url = java.net.URL("$serverUrl/webhook/trigger-research")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 15000
+                conn.readTimeout = 60000 // 60s timeout for LLM/Search report generation
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                
+                val jsonPayload = JSONObject().apply {
+                    put("topic", topic)
+                    put("chatInput", topic) // Backward compatibility / fallback for n8n AI Agent node
+                    put("instant", true)
+                }.toString()
+                
+                conn.outputStream.use { os ->
+                    os.write(jsonPayload.toByteArray(Charsets.UTF_8))
+                }
+                
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val contentType = conn.contentType ?: ""
+                    val responseBytes = conn.inputStream.readBytes()
+                    
+                    var pdfBytes: ByteArray? = null
+                    if (contentType.lowercase().contains("application/pdf")) {
+                        pdfBytes = responseBytes
+                    } else {
+                        // Attempt to parse JSON
+                        try {
+                            val jsonResponse = JSONObject(String(responseBytes, Charsets.UTF_8))
+                            val base64Pdf = jsonResponse.optString("pdf", "")
+                            if (base64Pdf.isNotEmpty()) {
+                                pdfBytes = Base64.decode(base64Pdf, Base64.DEFAULT)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("WakeWordService", "Failed to parse JSON response for PDF", e)
+                        }
+                    }
+                    
+                    if (pdfBytes != null && pdfBytes.isNotEmpty()) {
+                        val item = com.example.jago.logic.ResearchHistoryEngine.saveResearchPdf(
+                            this@WakeWordService,
+                            displayTitle,
+                            pdfBytes
+                        )
+                        withContext(Dispatchers.Main) {
+                            JagoTTS.speak("Research completed. PDF report is now available in your research section.")
+                            val intent = Intent(this@WakeWordService, ResearchActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                putExtra("open_item_timestamp", item.timestamp)
+                            }
+                            startActivity(intent)
+                            hideOverlayWithDelay()
+                            isMidFlow = false
+                        }
+                    } else {
+                        throw Exception("Received empty PDF response")
+                    }
+                } else {
+                    throw Exception("Server returned code $responseCode")
+                }
+            } catch (e: Exception) {
+                Log.e("WakeWordService", "On-demand research failed", e)
+                withContext(Dispatchers.Main) {
+                    JagoTTS.speak("Sorry, the research request failed. Please check your network connection.")
+                    hideOverlayWithDelay()
+                    isMidFlow = false
+                }
+            }
+        }
+    }
+
+    private fun handleVoiceExpense(queryText: String) {
+        isMidFlow = true
+        com.example.jago.ui.AssistantUIBridge.updateStatus("Logging Expense...")
+        com.example.jago.ui.AssistantUIBridge.updatePartial(queryText)
+        
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val serverUrl = com.example.jago.logic.ResearchHistoryEngine.getN8nServerUrl(this@WakeWordService)
+                
+                val url = java.net.URL("$serverUrl/webhook/voice-expense")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 15000
+                conn.readTimeout = 25000
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                
+                val jsonPayload = JSONObject().apply {
+                    put("text", queryText)
+                }.toString()
+                
+                conn.outputStream.use { os ->
+                    os.write(jsonPayload.toByteArray(Charsets.UTF_8))
+                }
+                
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    val responseJson = JSONObject(responseText)
+                    val message = responseJson.optString("message", "Expense successfully recorded.")
+                    
+                    withContext(Dispatchers.Main) {
+                        JagoTTS.speak(message)
+                        com.example.jago.ui.AssistantUIBridge.updateStatus("Success")
+                        com.example.jago.ui.AssistantUIBridge.updatePartial(message)
+                        hideOverlayWithDelay()
+                        isMidFlow = false
+                    }
+                } else {
+                    throw Exception("Server returned code $responseCode")
+                }
+            } catch (e: Exception) {
+                Log.e("WakeWordService", "Expense log failed", e)
+                withContext(Dispatchers.Main) {
+                    JagoTTS.speak("Sorry, I could not record your expense. Please check your internet connection.")
+                    hideOverlayWithDelay()
+                    isMidFlow = false
+                }
+            }
+        }
+    }
+
+    private fun handleVoiceEmail(queryText: String) {
+        isMidFlow = true
+        com.example.jago.ui.AssistantUIBridge.updateStatus("Sending Email...")
+        com.example.jago.ui.AssistantUIBridge.updatePartial(queryText)
+        
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val serverUrl = com.example.jago.logic.ResearchHistoryEngine.getN8nServerUrl(this@WakeWordService)
+                
+                val url = java.net.URL("$serverUrl/webhook/voice-email")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 15000
+                conn.readTimeout = 25000
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                
+                val jsonPayload = JSONObject().apply {
+                    put("text", queryText)
+                }.toString()
+                
+                conn.outputStream.use { os ->
+                    os.write(jsonPayload.toByteArray(Charsets.UTF_8))
+                }
+                
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    val responseJson = JSONObject(responseText)
+                    val message = responseJson.optString("message", "Email successfully drafted and sent.")
+                    
+                    withContext(Dispatchers.Main) {
+                        JagoTTS.speak(message)
+                        com.example.jago.ui.AssistantUIBridge.updateStatus("Success")
+                        com.example.jago.ui.AssistantUIBridge.updatePartial(message)
+                        hideOverlayWithDelay()
+                        isMidFlow = false
+                    }
+                } else {
+                    throw Exception("Server returned code $responseCode")
+                }
+            } catch (e: Exception) {
+                Log.e("WakeWordService", "Email dispatch failed", e)
+                withContext(Dispatchers.Main) {
+                    JagoTTS.speak("Sorry, I could not send the email. Please check your internet connection.")
+                    hideOverlayWithDelay()
+                    isMidFlow = false
+                }
+            }
+        }
+    }
+
+    fun handleN8nWorkflow(workflowName: String, parameter: String?, queryText: String) {
+        isMidFlow = true
+        com.example.jago.ui.AssistantUIBridge.updateStatus("Running Workflow...")
+        com.example.jago.ui.AssistantUIBridge.updatePartial("Workflow: $workflowName")
+
+        JagoTTS.speak("Running workflow $workflowName...")
+        hideOverlayWithDelay()
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val serverUrl = com.example.jago.logic.ResearchHistoryEngine.getN8nServerUrl(this@WakeWordService)
+                val url = java.net.URL("$serverUrl/webhook/trigger-workflow")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 15000
+                conn.readTimeout = 25000
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+
+                val jsonPayload = JSONObject().apply {
+                    put("workflow", workflowName)
+                    if (parameter != null) {
+                        put("parameter", parameter)
+                    } else {
+                        put("parameter", JSONObject.NULL)
+                    }
+                    put("rawQuery", queryText)
+                }.toString()
+
+                conn.outputStream.use { os ->
+                    os.write(jsonPayload.toByteArray(Charsets.UTF_8))
+                }
+
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    val responseJson = JSONObject(responseText)
+                    val message = responseJson.optString("message", "Workflow executed successfully.")
+
+                    withContext(Dispatchers.Main) {
+                        JagoTTS.speak(message)
+                        com.example.jago.ui.AssistantUIBridge.updateStatus("Success")
+                        com.example.jago.ui.AssistantUIBridge.updatePartial(message)
+                        hideOverlayWithDelay()
+                        isMidFlow = false
+                    }
+                } else {
+                    throw Exception("Server returned code $responseCode")
+                }
+            } catch (e: Exception) {
+                Log.e("WakeWordService", "Workflow dispatch failed", e)
+                withContext(Dispatchers.Main) {
+                    JagoTTS.speak("Sorry, I could not execute the workflow. Please check your connection.")
+                    hideOverlayWithDelay()
+                    isMidFlow = false
+                }
+            }
+        }
+    }
+
+    fun sendTelegramMessageViaN8n(contact: String, message: String?, rawQuery: String) {
+        if (message.isNullOrEmpty()) {
+            JagoTTS.speakBilingualWithCallback(
+                "What should the Telegram message say?",
+                "Message mein kya likhna hai?"
+            ) {
+                startTelegramMessageFollowUp(contact)
+            }
+            return
+        }
+
+        isMidFlow = true
+        com.example.jago.ui.AssistantUIBridge.updateStatus("Sending Telegram...")
+        com.example.jago.ui.AssistantUIBridge.updatePartial("To: $contact")
+
+        JagoTTS.speak("Sending Telegram message to $contact...")
+        hideOverlayWithDelay()
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val serverUrl = com.example.jago.logic.ResearchHistoryEngine.getN8nServerUrl(this@WakeWordService)
+                val url = java.net.URL("$serverUrl/webhook/send-telegram")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 15000
+                conn.readTimeout = 25000
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+
+                val jsonPayload = JSONObject().apply {
+                    put("contact", contact)
+                    put("message", message)
+                    put("rawQuery", rawQuery)
+                }.toString()
+
+                conn.outputStream.use { os ->
+                    os.write(jsonPayload.toByteArray(Charsets.UTF_8))
+                }
+
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    val responseJson = JSONObject(responseText)
+                    val responseMessage = responseJson.optString("message", "Telegram message sent successfully.")
+
+                    withContext(Dispatchers.Main) {
+                        JagoTTS.speak(responseMessage)
+                        com.example.jago.ui.AssistantUIBridge.updateStatus("Success")
+                        com.example.jago.ui.AssistantUIBridge.updatePartial(responseMessage)
+                        hideOverlayWithDelay()
+                        isMidFlow = false
+                    }
+                } else {
+                    throw Exception("Server returned code $responseCode")
+                }
+            } catch (e: Exception) {
+                Log.e("WakeWordService", "Telegram dispatch failed", e)
+                withContext(Dispatchers.Main) {
+                    JagoTTS.speak("Sorry, I could not send the Telegram message. Please check your connection.")
+                    hideOverlayWithDelay()
+                    isMidFlow = false
                 }
             }
         }

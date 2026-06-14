@@ -1,61 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<!--
+    Neural HUD: Voice Macro List Item
+    Design: HUD List row with teal separator and monospace labels
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:padding="12dp"
-    android:layout_margin="4dp"
-    android:background="@drawable/glass_card">
+    android:orientation="vertical">
+
+    <!-- Teal separator at top -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@drawable/hud_separator"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp" />
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="12dp">
 
-        <TextView
-            android:id="@+id/txtShortcutVoice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Voice Trigger"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary" />
+        <!-- Mic status dot -->
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/neural_status_orb"
+            android:layout_marginEnd="12dp" />
 
-        <TextView
-            android:id="@+id/txtShortcutSteps"
-            android:layout_width="wrap_content"
+        <!-- Macro info -->
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Steps description"
-            android:textSize="11sp"
-            android:textColor="@color/text_secondary"
-            android:layout_marginTop="2dp" />
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/txtShortcutVoice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text='Trigger: "macro name"'
+                android:textColor="@color/on_surface"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:id="@+id/txtShortcutSteps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 automation step(s)"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.04" />
+        </LinearLayout>
+
+        <!-- Play action -->
+        <View
+            android:id="@+id/btnPlayMacro"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/hud_glass_card_teal"
+            android:layout_marginEnd="6dp"
+            android:contentDescription="Execute macro" />
+
+        <!-- Delete action -->
+        <View
+            android:id="@+id/btnDeleteMacro"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/glass_card_premium"
+            android:contentDescription="Delete macro" />
 
     </LinearLayout>
-
-    <!-- Play/Test macro -->
-    <ImageButton
-        android:id="@+id/btnPlayMacro"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_media_play"
-        android:backgroundTint="@color/green_accent"
-        android:padding="6dp"
-        android:scaleType="fitCenter" />
-
-    <!-- Delete macro -->
-    <ImageButton
-        android:id="@+id/btnDeleteMacro"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_delete"
-        android:backgroundTint="@color/alert_red"
-        android:padding="6dp"
-        android:scaleType="fitCenter"
-        android:layout_marginStart="8dp" />
 
 </LinearLayout>

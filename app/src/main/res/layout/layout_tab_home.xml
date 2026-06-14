@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<!--
+    JAGRUT — Home Tab (Neural HUD Core)
+    Design: jagrut_home_core Stitch screen
+    Center: Neural Orb with spinning arcs
+    Below: Typewriter status text + telemetry chips
+    Action: ENGAGE / STOP control module button
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <!-- ─── Main Scroll Content ─── -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="120dp">
+
+            <!-- ════════════════════════════════════════
+                 Neural Orb Stage
+                 (Replaces the Three.js sphere from Stitch)
+                 ════════════════════════════════════════ -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="300dp"
+                android:gravity="center">
+
+                <!-- HUD Reticle: Top-Left corner bracket -->
+                <View
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="top|start"
+                    android:layout_margin="24dp"
+                    android:background="@drawable/hud_corner_tl" />
+
+                <!-- HUD Reticle: Bottom-Right corner bracket -->
+                <View
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="24dp"
+                    android:background="@drawable/hud_corner_br" />
+
+                <!-- The Neural Orb (custom 3D canvas view) -->
+                <com.example.jago.ui.GlowSphereView
+                    android:id="@+id/glowSphereView"
+                    android:layout_width="240dp"
+                    android:layout_height="240dp"
+                    android:layout_gravity="center" />
+
+            </FrameLayout>
+
+            <!-- ════════════════════════════════════════
+                 Terminal Typewriter Status
+                 ════════════════════════════════════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingTop="4dp"
+                android:paddingBottom="20dp">
+
+                <!-- Typewriter readout -->
+                <TextView
+                    android:id="@+id/tvTypewriter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ONLINE. READY, CAPTAIN."
+                    android:textColor="@color/neural_teal"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.12"
+                    android:textAllCaps="true" />
+
+                <!-- Telemetry row -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="12dp">
+
+                    <!-- SYS.CORE chip -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/hud_glass_card_teal"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="5dp"
+                        android:paddingBottom="5dp"
+                        android:layout_marginEnd="8dp">
+
+                        <View
+                            android:id="@+id/statusDot"
+                            android:layout_width="6dp"
+                            android:layout_height="6dp"
+                            android:background="@drawable/neural_status_orb"
+                            android:layout_marginEnd="6dp" />
+
+                        <TextView
+                            android:id="@+id/statusText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="SYS.CORE: OPTIMAL"
+                            android:textColor="@color/neural_teal"
+                            android:textSize="10sp"
+                            android:fontFamily="monospace"
+                            android:letterSpacing="0.08"
+                            android:textAllCaps="true" />
+                    </LinearLayout>
+
+                    <!-- NEURAL.LINK chip -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/hud_glass_card_violet"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="5dp"
+                        android:paddingBottom="5dp">
+
+                        <View
+                            android:layout_width="6dp"
+                            android:layout_height="6dp"
+                            android:background="@drawable/red_dot"
+                            android:backgroundTint="@color/brand_primary"
+                            android:layout_marginEnd="6dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="NEURAL.LINK: STABLE"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="10sp"
+                            android:fontFamily="monospace"
+                            android:letterSpacing="0.08"
+                            android:textAllCaps="true" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ════════════════════════════════════════
+                 Control Module — ENGAGE / STOP
+                 ════════════════════════════════════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingBottom="24dp">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/actionButton"
+                    android:layout_width="200dp"
+                    android:layout_height="52dp"
+                    android:text="ENGAGE JAGRUT"
+                    android:background="@drawable/hud_button_primary"
+                    android:textColor="@color/neural_teal"
+                    android:textStyle="bold"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:elevation="8dp" />
+
+            </LinearLayout>
+
+            <!-- ════════════════════════════════════════
+                 Analytics Intelligence Row
+                 (AI Core Load + Privacy Health)
+                 ════════════════════════════════════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="16dp">
+
+                <!-- AI Core Load Card -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/hud_glass_card_violet"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_marginEnd="6dp">
+
+                    <!-- Corner bracket decorations -->
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <View android:layout_width="14dp" android:layout_height="14dp"
+                            android:layout_gravity="top|start"
+                            android:background="@drawable/hud_corner_tl" />
+                        <View android:layout_width="14dp" android:layout_height="14dp"
+                            android:layout_gravity="bottom|end"
+                            android:background="@drawable/hud_corner_br" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="AI CORE LOAD"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="9sp"
+                                android:fontFamily="monospace"
+                                android:letterSpacing="0.1"
+                                android:textAllCaps="true"
+                                android:layout_marginBottom="8dp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="34%"
+                                android:textColor="@color/brand_primary"
+                                android:textSize="26sp"
+                                android:textStyle="bold"
+                                android:layout_marginBottom="8dp" />
+
+                            <ProgressBar
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="3dp"
+                                android:progress="34"
+                                android:progressTint="@color/electric_violet"
+                                android:progressBackgroundTint="#1AFFFFFF" />
+                        </LinearLayout>
+                    </FrameLayout>
+
+                </LinearLayout>
+
+                <!-- Privacy Health Card -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/hud_glass_card_teal"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_marginStart="6dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="PRIVACY SHIELD"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="9sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.1"
+                        android:textAllCaps="true"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="100%"
+                        android:textColor="@color/neural_teal"
+                        android:textSize="26sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ALL SYSTEMS SECURE"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="9sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.06"
+                        android:textAllCaps="true" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</FrameLayout>

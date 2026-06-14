@@ -315,4 +315,30 @@ class CommandParserTest {
         assertEquals(1, commands.size)
         assertEquals(CommandType.UNKNOWN, commands[0].type)
     }
+
+    @Test
+    fun testResearchDoesNotMatchSearch() {
+        val input = "ask Gemini to research on current oil market"
+        val commands = parser.parse(input)
+        assertEquals(1, commands.size)
+        assertEquals(CommandType.UNKNOWN, commands[0].type)
+    }
+
+    @Test
+    fun testResearchDirectDoesNotMatchSearch() {
+        val input = "research on current oil market"
+        val commands = parser.parse(input)
+        assertEquals(1, commands.size)
+        assertEquals(CommandType.UNKNOWN, commands[0].type)
+    }
+
+    @Test
+    fun testStandardSearchStillWorks() {
+        val input = "search funny cat videos"
+        val commands = parser.parse(input)
+        assertEquals(1, commands.size)
+        val cmd = commands[0]
+        assertEquals(CommandType.SEARCH, cmd.type)
+        assertEquals("funny cat videos", cmd.messageBody)
+    }
 }

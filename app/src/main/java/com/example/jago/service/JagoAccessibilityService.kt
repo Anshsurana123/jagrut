@@ -11,6 +11,8 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.accessibilityservice.AccessibilityServiceInfo
 import kotlinx.coroutines.*
+import android.text.Spanned
+import android.text.style.ClickableSpan
 
 class JagoAccessibilityService : AccessibilityService() {
 
@@ -196,31 +198,10 @@ class JagoAccessibilityService : AccessibilityService() {
             
             val nodes = findSpotifyNodes(root)
             if (nodes.isNotEmpty()) {
-                // Heuristic: The first result is often the "Top Result" or "Song"
-                // We want to avoid clicking the "Filters" (e.g., Songs, Artists, Playlists) which are usually at the very top.
-                // We'll iterate and pick the first one that seems substantial (has title + subtitle usually).
-                
                 for (node in nodes) {
-                    if (node.isClickable) {
-                         val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                         if (result) {
-                             Log.d("JagoAccessibility", "Clicked Spotify node: ${node.viewIdResourceName} / ${node.className}")
-                             return true
-                         }
-                    } else {
-                        // Try parent
-                         var parent = node.parent
-                         while (parent != null) {
-                             if (parent.isClickable) {
-                                  val result = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                  if (result) {
-                                      Log.d("JagoAccessibility", "Clicked Spotify parent node")
-                                      return true
-                                  }
-                                  break
-                             }
-                             parent = parent.parent
-                         }
+                    if (performClickOnNode(node)) {
+                        Log.d("JagoAccessibility", "Clicked Spotify node: ${node.viewIdResourceName} / ${node.className}")
+                        return true
                     }
                 }
             }
@@ -312,9 +293,9 @@ class JagoAccessibilityService : AccessibilityService() {
             return instance?.rootInActiveWindow
         }
 
-        fun performClickOnNode(node: AccessibilityNodeInfo): Boolean {
+        fun performClickOnNode(node: AccessibilityNodeInfo, targetText: String? = null): Boolean {
             val inst = instance ?: return false
-            return inst.performRobustClick(node)
+            return inst.performRobustClick(node, targetText)
         }
 
         fun performTextEntryOnNode(node: AccessibilityNodeInfo, text: String): Boolean {
@@ -604,9 +585,64 @@ class JagoAccessibilityService : AccessibilityService() {
                 nodeBounds.left - editBounds.right
             }
         }
+        private fun findFirstSearchResultNode(root: AccessibilityNodeInfo, targetContactName: String?): AccessibilityNodeInfo? {
+            // 1. Try to find by text match first (most accurate)
+            if (!targetContactName.isNullOrEmpty()) {
+                val node = instance?.findNodeByText(root, targetContactName)
+                if (node != null) return node
+            }
+
+            // 2. Otherwise, find the RecyclerView/ListView and get its first child
+            val queue = java.util.ArrayDeque<AccessibilityNodeInfo>()
+            queue.add(root)
+            var listNode: AccessibilityNodeInfo? = null
+            while (!queue.isEmpty()) {
+                val node = queue.poll() ?: continue
+                val className = node.className?.toString() ?: ""
+                if (className.contains("RecyclerView") || className.contains("ListView")) {
+                    listNode = node
+                    break
+                }
+                for (i in 0 until node.childCount) {
+                    node.getChild(i)?.let { queue.add(it) }
+                }
+            }
+
+            if (listNode != null && listNode.childCount > 0) {
+                // Find the first child that is not a header/divider
+                for (i in 0 until listNode.childCount) {
+                    val child = listNode.getChild(i) ?: continue
+                    // Skip header/titles if possible (e.g. "Chats", "Contacts" labels)
+                    val text = child.text?.toString() ?: ""
+                    if (text.equals("Chats", ignoreCase = true) || text.equals("Contacts", ignoreCase = true) || 
+                        text.equals("Messages", ignoreCase = true) || text.equals("More", ignoreCase = true)) {
+                        continue
+                    }
+                    return child
+                }
+                return listNode.getChild(0)
+            }
+            
+            return null
+        }
+
         private fun clickFirstResult() {
-             Log.d("JagoAccessibility", "Performing user-requested hardcoded coordinate click at (697.0, 661.0)")
-             instance?.performGestureClick(697f, 661f)
+             val root = instance?.rootInActiveWindow
+             var clicked = false
+             if (root != null) {
+                 val resultNode = findFirstSearchResultNode(root, Companion.targetContact)
+                 if (resultNode != null) {
+                     clicked = performClickOnNode(resultNode)
+                     if (clicked) {
+                         Log.d("JagoAccessibility", "clickFirstResult: Dynamically clicked search result node")
+                     }
+                 }
+             }
+             
+             if (!clicked) {
+                 Log.d("JagoAccessibility", "clickFirstResult: Falling back to hardcoded coordinate click at (697.0, 661.0)")
+                 instance?.performGestureClick(697f, 661f)
+             }
              
              Companion.targetContact = null
              Companion.isSearchingForContact = false
@@ -1042,7 +1078,7 @@ class JagoAccessibilityService : AccessibilityService() {
         path.lineTo(x + 1, y + 1) // Small movement to ensure path is valid
         
         val builder = android.accessibilityservice.GestureDescription.Builder()
-        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 50)) // 50ms tap
+        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100)) // 100ms tap
         
         val gesture = builder.build()
         val dispatched = dispatchGesture(gesture, object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
@@ -1238,26 +1274,85 @@ class JagoAccessibilityService : AccessibilityService() {
         return performRobustClick(node)
     }
 
-    private fun performRobustClick(node: AccessibilityNodeInfo): Boolean {
+    private fun performRobustClick(node: AccessibilityNodeInfo, targetText: String? = null): Boolean {
+        // 1. Spanned link check: if it contains clickable spans (links), click the matching span!
+        val text = node.text
+        if (text is Spanned) {
+            val spans = text.getSpans(0, text.length, ClickableSpan::class.java)
+            if (spans.isNotEmpty()) {
+                val indexToClick = if (!targetText.isNullOrEmpty()) {
+                    var foundIndex = -1
+                    for (i in spans.indices) {
+                        val span = spans[i]
+                        val start = text.getSpanStart(span)
+                        val end = text.getSpanEnd(span)
+                        val spanText = text.subSequence(start, end).toString().trim()
+                        if (spanText.contains(targetText, ignoreCase = true)) {
+                            foundIndex = i
+                            break
+                        }
+                    }
+                    foundIndex
+                } else {
+                    0
+                }
+                
+                if (indexToClick >= 0) {
+                    Log.d("JagoAccessibility", "performRobustClick: Found clickable span at index $indexToClick. Triggering via ACTION_CLICK.")
+                    val arguments = android.os.Bundle()
+                    arguments.putInt("android.view.accessibility.action.ARGUMENT_CLICK_SPAN_INDEX_INT", indexToClick)
+                    val result = node.performAction(AccessibilityNodeInfo.ACTION_CLICK, arguments)
+                    if (result) return true
+                }
+            }
+        }
+
+        // 2. Precise gesture click if the node has valid center coordinates on-screen (and is not full screen)
+        val bounds = android.graphics.Rect()
+        node.getBoundsInScreen(bounds)
+        val metrics = getAbsoluteDisplayMetrics()
+        val cx = bounds.centerX()
+        val cy = bounds.centerY()
+        val isOnScreen = cx > 0 && cx < metrics.widthPixels && cy > 0 && cy < metrics.heightPixels
+        val isTooLarge = bounds.width() > metrics.widthPixels * 0.8f && bounds.height() > metrics.heightPixels * 0.8f
+
+        if (isOnScreen && !isTooLarge) {
+            Log.d("JagoAccessibility", "performRobustClick: Node has valid on-screen center at ($cx, $cy). Performing precise gesture click.")
+            performGestureClick(cx.toFloat(), cy.toFloat())
+            return true
+        }
+
+        // 3. Fallback: programmatic ACTION_CLICK up the parent tree for off-screen/partially visible elements
+        val bannedClasses = listOf(
+            "ListView", "GridView", "RecyclerView", "ScrollView", "ViewPager", "AdapterView"
+        )
         var current: AccessibilityNodeInfo? = node
         while (current != null) {
-            if (current.isClickable) {
+            val className = current.className?.toString() ?: ""
+            val isBanned = bannedClasses.any { className.contains(it, ignoreCase = true) }
+            
+            val parentBounds = android.graphics.Rect()
+            current.getBoundsInScreen(parentBounds)
+            val parentTooLarge = parentBounds.width() > metrics.widthPixels * 0.8f && parentBounds.height() > metrics.heightPixels * 0.8f
+
+            if (current.isClickable && !isBanned && !parentTooLarge) {
                 current.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
                 val result = current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                if (result) return true
+                if (result) {
+                    Log.d("JagoAccessibility", "performRobustClick: Programmatic parent click succeeded for ${current.className}")
+                    return true
+                }
             }
             current = current.parent
         }
-        
-        // Failsafe absolute coordinate tap fallback!
-        val bounds = android.graphics.Rect()
-        node.getBoundsInScreen(bounds)
-        if (bounds.centerX() > 0 && bounds.centerY() > 0) {
-            Log.d("JagoAccessibility", "performRobustClick: Node click failed. Falling back to dynamic gesture click at (${bounds.centerX()}, ${bounds.centerY()})")
-            performGestureClick(bounds.centerX().toFloat(), bounds.centerY().toFloat())
+
+        // 4. Last resort coordinate tap if positive coordinates are found
+        if (cx > 0 && cy > 0) {
+            Log.d("JagoAccessibility", "performRobustClick: Last resort gesture click at ($cx, $cy)")
+            performGestureClick(cx.toFloat(), cy.toFloat())
             return true
         }
-        
+
         return false
     }
 
@@ -1568,13 +1663,13 @@ class JagoAccessibilityService : AccessibilityService() {
                                 if (!step.targetId.isNullOrEmpty()) {
                                     val nodes = root.findAccessibilityNodeInfosByViewId(step.targetId)
                                     if (nodes != null && nodes.isNotEmpty()) {
-                                        clicked = performRobustClick(nodes[0])
+                                        clicked = performRobustClick(nodes[0], step.targetText)
                                     }
                                 }
                                 if (!clicked && !step.targetText.isNullOrEmpty()) {
                                     val textNode = findNodeByText(root, step.targetText)
                                     if (textNode != null) {
-                                        clicked = performRobustClick(textNode)
+                                        clicked = performRobustClick(textNode, step.targetText)
                                     }
                                 }
                                 if (!clicked && !step.contentDescription.isNullOrEmpty()) {
@@ -1588,7 +1683,7 @@ class JagoAccessibilityService : AccessibilityService() {
                                         }
                                     }
                                     if (descNodes.isNotEmpty()) {
-                                        clicked = performRobustClick(descNodes[0])
+                                        clicked = performRobustClick(descNodes[0], step.targetText)
                                         if (clicked) {
                                             Log.d("JagoAccessibility", "Replay: Clicked node via contentDescription: ${descNodes[0].contentDescription}")
                                         }
@@ -1599,7 +1694,7 @@ class JagoAccessibilityService : AccessibilityService() {
                             if (!clicked && step.packageName?.contains("whatsapp") == true && root != null) {
                                 val resolvedNode = resolveWhatsAppNodeHeuristically(root, step)
                                 if (resolvedNode != null) {
-                                    clicked = performRobustClick(resolvedNode)
+                                    clicked = performRobustClick(resolvedNode, step.targetText)
                                     if (clicked) {
                                         Log.d("JagoAccessibility", "Replay: Clicked WhatsApp node heuristically resolved for step: ${step.targetId ?: step.targetText ?: step.contentDescription}")
                                     }

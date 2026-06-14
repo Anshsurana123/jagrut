@@ -414,6 +414,12 @@ object SemanticCommandMatcher {
 
     private fun isIncompatibleMatch(query: String, commandType: CommandType): Boolean {
         val lowerQuery = query.lowercase().trim()
+
+        // Reject local command routing if the user is explicitly invoking Gemini/AI fallbacks
+        if (lowerQuery.containsWord("gemini") || lowerQuery.containsWord("ai") || lowerQuery.containsWord("sarvam")) {
+            return true
+        }
+
         val removalVerbs = listOf("remove", "delete", "clear", "erase", "uninstall", "reset")
         
         if (removalVerbs.none { lowerQuery.contains(it) }) {
@@ -455,5 +461,9 @@ object SemanticCommandMatcher {
         }
         return if (normA == 0.0f || normB == 0.0f) 0.0f
         else (dotProduct / (sqrt(normA.toDouble()) * sqrt(normB.toDouble())).toFloat())
+    }
+
+    private fun String.containsWord(word: String): Boolean {
+        return Regex("\\b${Regex.escape(word)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(this)
     }
 }

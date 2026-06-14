@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<!--
+    JAGRUT — Intelligence Dashboard (Logs Tab)
+    Design: jagrut_intelligence_dashboard Stitch screen
+    Bento card grid: AI Brief, Neural Calendar, Radar, Alerts
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:paddingBottom="120dp">
+
+        <!-- ─── Section Header ─── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="INTELLIGENCE DASHBOARD"
+                    android:textColor="@color/brand_primary"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="System Ready."
+                    android:textColor="@color/on_surface"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Live Sync indicator -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/neural_status_orb"
+                    android:layout_marginEnd="6dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LIVE SYNC"
+                    android:textColor="@color/neural_teal"
+                    android:textSize="10sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ─── AI Daily Brief Card (Violet primary) ─── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/hud_glass_card_violet"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:layout_marginBottom="12dp">
+
+            <!-- Corner brackets -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <View android:layout_width="14dp" android:layout_height="14dp"
+                    android:layout_gravity="top|start"
+                    android:background="@drawable/hud_corner_tl" />
+                <View android:layout_width="14dp" android:layout_height="14dp"
+                    android:layout_gravity="bottom|end"
+                    android:background="@drawable/hud_corner_br" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp">
+
+                    <!-- Label chip -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AI DAILY BRIEF"
+                        android:textColor="@color/brand_primary"
+                        android:textSize="10sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.1"
+                        android:textAllCaps="true"
+                        android:background="@drawable/hud_glass_card_violet"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:layout_marginBottom="10dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Gemini Execution Engine"
+                        android:textColor="@color/on_surface"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="View step-by-step AI reasoning outputs and compiled action schemas generated in real-time."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:layout_marginBottom="16dp" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/geminiButton"
+                        android:layout_width="160dp"
+                        android:layout_height="44dp"
+                        android:text="VIEW LOGS"
+                        android:background="@drawable/hud_button_primary"
+                        android:textColor="@color/neural_teal"
+                        android:textStyle="bold"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.08"
+                        android:textAllCaps="true" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- ─── Daily Research Reports Card (Teal secondary) ─── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/hud_glass_card_teal"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="RESEARCH REPORTS"
+                    android:textColor="@color/neural_teal"
+                    android:textSize="10sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:layout_weight="1" />
+
+                <!-- Spinning radar icon equivalent -->
+                <View
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:background="@drawable/neural_status_orb" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Access scheduled web-compiled research summaries, stock stats, and exported PDF reports."
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:layout_marginBottom="16dp" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/researchButton"
+                android:layout_width="180dp"
+                android:layout_height="44dp"
+                android:text="VIEW REPORTS"
+                android:background="@drawable/hud_button_teal"
+                android:textColor="@color/neural_teal"
+                android:textStyle="bold"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true" />
+        </LinearLayout>
+
+        <!-- ─── System Status Row (2 mini cards) ─── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <!-- Node Latency card -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/hud_glass_card_teal"
+                android:orientation="vertical"
+                android:padding="14dp"
+                android:layout_marginEnd="6dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/neural_status_orb"
+                        android:layout_marginEnd="6dp" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="NODE STATUS"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="9sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.08"
+                        android:textAllCaps="true" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="12ms"
+                    android:textColor="@color/neural_teal"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LOCAL GRID STABLE"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.06"
+                    android:textAllCaps="true" />
+            </LinearLayout>
+
+            <!-- System Alerts card -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/glass_card_premium"
+                android:orientation="vertical"
+                android:padding="14dp"
+                android:layout_marginStart="6dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="SYS ALERTS"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="9sp"
+                        android:fontFamily="monospace"
+                        android:letterSpacing="0.08"
+                        android:textAllCaps="true" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/brand_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ALL CLEAR"
+                    android:textColor="@color/neural_teal"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.06"
+                    android:textAllCaps="true" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

@@ -12,9 +12,14 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.os.Handler
+import android.os.Looper
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.app.ActivityCompat
@@ -26,6 +31,8 @@ import java.net.URLEncoder
 
 class MainActivity : AppCompatActivity() {
 
+    private val clockHandler = Handler(Looper.getMainLooper())
+    private lateinit var tvSystemClock: TextView
     private lateinit var statusText: TextView
     private lateinit var actionButton: Button
     private lateinit var adminButton: android.view.View
@@ -34,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var uploadRingtoneButton: android.view.View
     private lateinit var commandsButton: Button
     private lateinit var geminiButton: Button
+    private lateinit var researchButton: Button
 
     private lateinit var lblAdminStatus: TextView
     private lateinit var lblOverlayStatus: TextView
@@ -69,20 +77,91 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        statusText = findViewById(R.id.statusText)
-        actionButton = findViewById(R.id.actionButton)
-        adminButton = findViewById(R.id.adminButton)
-        overlayButton = findViewById(R.id.overlayButton)
-        brightnessButton = findViewById(R.id.brightnessButton)
-        uploadRingtoneButton = findViewById(R.id.uploadRingtoneButton)
-        commandsButton = findViewById(R.id.commandsButton)
+        // Inflate dashboard carousel tab layouts
+        val inflater = layoutInflater
+        val tabHome = inflater.inflate(R.layout.layout_tab_home, null)
+        val tabMacros = inflater.inflate(R.layout.layout_tab_macros, null)
+        val tabLogs = inflater.inflate(R.layout.layout_tab_logs, null)
+        val tabPermissions = inflater.inflate(R.layout.layout_tab_permissions, null)
 
-        lblAdminStatus = findViewById(R.id.lblAdminStatus)
-        lblOverlayStatus = findViewById(R.id.lblOverlayStatus)
-        lblBrightnessStatus = findViewById(R.id.lblBrightnessStatus)
-        btnRecordMacro = findViewById(R.id.btnRecordMacro)
-        containerMacros = findViewById(R.id.containerMacros)
+        // Bind view references to subviews in the respective tabs
+        statusText = tabHome.findViewById(R.id.statusText)
+        actionButton = tabHome.findViewById(R.id.actionButton)
 
+        adminButton = tabPermissions.findViewById(R.id.adminButton)
+        overlayButton = tabPermissions.findViewById(R.id.overlayButton)
+        brightnessButton = tabPermissions.findViewById(R.id.brightnessButton)
+        uploadRingtoneButton = tabPermissions.findViewById(R.id.uploadRingtoneButton)
+
+        lblAdminStatus = tabPermissions.findViewById(R.id.lblAdminStatus)
+        lblOverlayStatus = tabPermissions.findViewById(R.id.lblOverlayStatus)
+        lblBrightnessStatus = tabPermissions.findViewById(R.id.lblBrightnessStatus)
+        btnRecordMacro = tabMacros.findViewById(R.id.btnRecordMacro)
+        containerMacros = tabMacros.findViewById(R.id.containerMacros)
+        commandsButton = tabMacros.findViewById(R.id.commandsButton)
+
+        geminiButton = tabLogs.findViewById(R.id.geminiButton)
+        researchButton = tabLogs.findViewById(R.id.researchButton)
+
+        // Setup ViewPager2 and BottomNavigationView
+        val viewPager = findViewById<androidx.viewpager2.widget.ViewPager2>(R.id.viewPager)
+        val bottomNav = findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNav)
+
+        val viewList = listOf(tabHome, tabMacros, tabLogs, tabPermissions)
+
+        viewPager.adapter = object : androidx.recyclerview.widget.RecyclerView.Adapter<androidx.recyclerview.widget.RecyclerView.ViewHolder>() {
+            override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): androidx.recyclerview.widget.RecyclerView.ViewHolder {
+                val frameLayout = android.widget.FrameLayout(parent.context).apply {
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+                return object : androidx.recyclerview.widget.RecyclerView.ViewHolder(frameLayout) {}
+            }
+
+            override fun onBindViewHolder(holder: androidx.recyclerview.widget.RecyclerView.ViewHolder, position: Int) {
+                val container = holder.itemView as android.widget.FrameLayout
+                container.removeAllViews()
+                val view = viewList[position]
+                if (view.parent != null) {
+                    (view.parent as android.view.ViewGroup).removeView(view)
+                }
+                container.addView(view)
+            }
+
+            override fun getItemCount(): Int = viewList.size
+            override fun getItemViewType(position: Int): Int = position
+        }
+
+        // Disable swiping/user input if preferred, or leave enabled for carousel swiping.
+        viewPager.isUserInputEnabled = true 
+
+        // Sync BottomNavigationView selection to ViewPager2 page change
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.menu_home -> viewPager.currentItem = 0
+                R.id.menu_macros -> viewPager.currentItem = 1
+                R.id.menu_logs -> viewPager.currentItem = 2
+                R.id.menu_security -> viewPager.currentItem = 3
+            }
+            true
+        }
+
+        // Sync ViewPager2 swipe changes back to BottomNavigationView selected item
+        viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                when (position) {
+                    0 -> bottomNav.selectedItemId = R.id.menu_home
+                    1 -> bottomNav.selectedItemId = R.id.menu_macros
+                    2 -> bottomNav.selectedItemId = R.id.menu_logs
+                    3 -> bottomNav.selectedItemId = R.id.menu_security
+                }
+            }
+        })
+
+        // Setup click listeners
         adminButton.setOnClickListener {
             requestDeviceAdminExemption()
         }
@@ -104,9 +183,13 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        geminiButton = findViewById(R.id.geminiButton)
         geminiButton.setOnClickListener {
             val intent = Intent(this, GeminiActivity::class.java)
+            startActivity(intent)
+        }
+
+        researchButton.setOnClickListener {
+            val intent = Intent(this, ResearchActivity::class.java)
             startActivity(intent)
         }
 
@@ -121,6 +204,19 @@ class MainActivity : AppCompatActivity() {
         btnRecordMacro.setOnClickListener {
             showRecordMacroDialog()
         }
+
+        val switchMongoDb = tabMacros.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchMongoDb)
+        val jagoPrefs = getSharedPreferences("JagoSettings", MODE_PRIVATE)
+        switchMongoDb.isChecked = jagoPrefs.getBoolean("mongodb_enabled", true)
+        switchMongoDb.setOnCheckedChangeListener { _, isChecked ->
+            jagoPrefs.edit().putBoolean("mongodb_enabled", isChecked).apply()
+            com.example.jago.logic.MongoDBClient.isMongoDBEnabled = isChecked
+            Log.d("MainActivity", "MongoDB preference set to: $isChecked")
+        }
+
+        // Wire up HUD live system clock
+        tvSystemClock = findViewById(R.id.tvSystemClock)
+        startHudClock()
 
         checkPermissions()
         JagoTTS.init(this)
@@ -139,12 +235,7 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    override fun onResume() {
-        super.onResume()
-        updatePermissionStatuses()
-        refreshMacrosList()
-        updateUI(WakeWordService.isServiceRunning)
-    }
+    // onResume is now defined below with clock restart
 
     private fun updatePermissionStatuses() {
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -263,7 +354,30 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         JagoTTS.stopSpeaking()
+        clockHandler.removeCallbacksAndMessages(null)
         super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startHudClock()
+        updatePermissionStatuses()
+        refreshMacrosList()
+        updateUI(WakeWordService.isServiceRunning)
+    }
+
+    private fun startHudClock() {
+        val fmt = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        val clockRunnable = object : Runnable {
+            override fun run() {
+                if (::tvSystemClock.isInitialized) {
+                    tvSystemClock.text = fmt.format(Date())
+                }
+                clockHandler.postDelayed(this, 1000)
+            }
+        }
+        clockHandler.removeCallbacksAndMessages(null)
+        clockHandler.post(clockRunnable)
     }
 
     private fun checkPermissions() {

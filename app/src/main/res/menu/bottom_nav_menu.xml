@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_home"
+        android:title="Home"
+        android:icon="@android:drawable/ic_menu_compass" />
+    <item
+        android:id="@+id/menu_macros"
+        android:title="Shortcuts"
+        android:icon="@android:drawable/ic_btn_speak_now" />
+    <item
+        android:id="@+id/menu_logs"
+        android:title="Logs"
+        android:icon="@android:drawable/ic_menu_info_details" />
+    <item
+        android:id="@+id/menu_security"
+        android:title="Security"
+        android:icon="@android:drawable/ic_lock_idle_lock" />
+</menu>

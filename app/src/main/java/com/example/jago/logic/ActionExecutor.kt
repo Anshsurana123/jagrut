@@ -140,11 +140,17 @@ class ActionExecutor(private val context: Context) {
                             }
                             return
                         }
-                        JagoTTS.speakBilingual(
-                            "Opening Telegram chat with ${result.contact.name}",
-                            "${result.contact.name} ke sath Telegram khol raha hoon"
-                        )
-                        sendDirectTelegramMessage(result.contact.name, result.contact.phoneNumber, message)
+                        val originalQuery = "send telegram message to ${result.contact.name} saying $message"
+                        val service = com.example.jago.service.WakeWordService.instance
+                        if (service != null) {
+                            service.sendTelegramMessageViaN8n(result.contact.name, message, originalQuery)
+                        } else {
+                            JagoTTS.speakBilingual(
+                                "Opening Telegram chat with ${result.contact.name}",
+                                "${result.contact.name} ke sath Telegram khol raha hoon"
+                            )
+                            sendDirectTelegramMessage(result.contact.name, result.contact.phoneNumber, message)
+                        }
                     }
                     is ContactResolver.ResolutionResult.Ambiguous -> {
                         val names = result.matches.take(3).joinToString(" or ") { c -> c.name }
@@ -163,7 +169,13 @@ class ActionExecutor(private val context: Context) {
                             }
                             return
                         }
-                        sendDirectTelegramMessage(contact, null, message)
+                        val originalQuery = "send telegram message to $contact saying $message"
+                        val service = com.example.jago.service.WakeWordService.instance
+                        if (service != null) {
+                            service.sendTelegramMessageViaN8n(contact, message, originalQuery)
+                        } else {
+                            sendDirectTelegramMessage(contact, null, message)
+                        }
                     }
                 }
             }
@@ -706,6 +718,12 @@ class ActionExecutor(private val context: Context) {
                 } catch (e: Exception) {
                     JagoTTS.speakBilingual("I couldn't adjust the brightness.", "Brightness change nahi ho saki.")
                 }
+            }
+            CommandType.TRIGGER_N8N_WORKFLOW -> {
+                val workflow = command.contactName ?: ""
+                val param = command.messageBody
+                val originalQuery = "run workflow $workflow" + (if (param != null) " with $param" else "")
+                com.example.jago.service.WakeWordService.instance?.handleN8nWorkflow(workflow, param, originalQuery)
             }
             CommandType.UNKNOWN -> {
                 JagoTTS.speakBilingual(

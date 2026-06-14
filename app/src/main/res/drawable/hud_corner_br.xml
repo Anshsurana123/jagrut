@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HUD Corner Bracket: Bottom-Right (L shape, mirrored) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Vertical part (right side) -->
+    <item android:left="16dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#8800DFC6" />
+            <size android:width="2dp" />
+        </shape>
+    </item>
+    <!-- Horizontal part (bottom) -->
+    <item android:top="16dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#8800DFC6" />
+            <size android:height="2dp" />
+        </shape>
+    </item>
+</layer-list>

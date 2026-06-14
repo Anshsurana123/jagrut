@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Active Nav Item Highlight — glowing teal circle -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#2200E5CC" />
+    <stroke
+        android:width="1dp"
+        android:color="#8800E5CC" />
+</shape>

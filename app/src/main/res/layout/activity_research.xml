@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ResearchActivity">
+
+    <!-- Holographic aurora background -->
+    <com.example.jago.ui.FuturisticBackgroundView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent">
+
+        <!-- Header / Title -->
+        <LinearLayout
+            android:id="@+id/headerLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.example.jago.ui.GradientTextView
+                android:id="@+id/tvTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🔍 Jago Research"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.04" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnClearResearch"
+                android:layout_width="80dp"
+                android:layout_height="36dp"
+                android:text="CLEAR"
+                android:textSize="11sp"
+                android:background="@drawable/button_secondary_glass"
+                android:textColor="@color/alert_red"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Scrollable content area for settings and list -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:background="@android:color/transparent"
+            app:layout_constraintTop_toBottomOf="@id/headerLayout"
+            app:layout_constraintBottom_toTopOf="@id/footerLayout">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <!-- Settings Card -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/glass_card_premium"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_margin="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚙️ Research Assistant Settings"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="12dp"
+                        android:letterSpacing="0.02" />
+
+                    <!-- Research Topic -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Research Topic"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp" />
+
+                    <EditText
+                        android:id="@+id/etResearchTopic"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="e.g. Current Oil Market &amp; Stocks"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="#55FFFFFF"
+                        android:inputType="text"
+                        android:textSize="14sp"
+                        android:backgroundTint="@color/brand_primary"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Interval -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Sync Schedule Interval (Minimum 1 Day)"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp" />
+
+                    <EditText
+                        android:id="@+id/etResearchInterval"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="1"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="#55FFFFFF"
+                        android:inputType="number"
+                        android:textSize="14sp"
+                        android:backgroundTint="@color/brand_primary"
+                        android:layout_marginBottom="18dp" />
+
+                    <!-- Save/Sync Button -->
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnSaveSyncSettings"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="SAVE &amp; SYNC SETTINGS"
+                        android:background="@drawable/button_primary_gradient"
+                        android:textColor="@color/white"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Logs / History Section Title -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📋 Research Reports History"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Frame containing List and Empty State -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="200dp">
+
+                    <!-- RecyclerView for Logs with load animation -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerViewResearch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:padding="4dp"
+                        android:layoutAnimation="@anim/layout_fall_down" />
+
+                    <!-- Empty State -->
+                    <LinearLayout
+                        android:id="@+id/layoutEmptyState"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_gravity="center"
+                        android:padding="24dp"
+                        android:background="@drawable/glass_card_premium"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📄"
+                            android:textSize="48sp"
+                            android:layout_marginBottom="16dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="No research reports found"
+                            android:textColor="@color/text_primary"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Say 'research on oil market' or sync daily schedule to generate your first PDF report!"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textAlignment="center"
+                            android:maxWidth="280dp" />
+                    </LinearLayout>
+                </FrameLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Footer displaying server status -->
+        <LinearLayout
+            android:id="@+id/footerLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#1512121A"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:gravity="center"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:id="@+id/tvLocalIp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Assistant Connection: Active"
+                android:textColor="@color/brand_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.02" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

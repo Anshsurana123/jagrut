@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<!--
+    JAGRUT — Voice Macros Tab (Neural HUD List)
+    Design: HUD List style — rows with teal separators, corner brackets
+    Header: VOICE MACROS + RECORD button
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:paddingBottom="120dp">
+
+        <!-- ─── HUD Section Label ─── -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="VOICE MACROS"
+            android:textColor="@color/neural_teal"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.12"
+            android:textAllCaps="true"
+            android:layout_marginBottom="6dp" />
+
+        <!-- ─── Panel Header ─── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/glass_card_premium"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <!-- Mic icon area -->
+            <LinearLayout
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/hud_glass_card_teal"
+                android:gravity="center"
+                android:layout_marginEnd="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎙"
+                    android:textSize="20sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VOICE SHORTCUTS"
+                    android:textColor="@color/on_surface"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.04" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Quick neural automation macros"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnRecordMacro"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="+ NEW"
+                android:textSize="10sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:background="@drawable/hud_button_teal"
+                android:textColor="@color/neural_teal"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true" />
+        </LinearLayout>
+
+        <!-- ─── Macros List Container ─── -->
+        <LinearLayout
+            android:id="@+id/containerMacros"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/glass_card_premium"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:minHeight="120dp"
+            android:layout_marginBottom="16dp"
+            android:layoutAnimation="@anim/layout_fall_down">
+
+            <TextView
+                android:id="@+id/txtNoMacros"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No recorded voice shortcuts yet.\nTap '+ NEW' to create your first macro."
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_gravity="center"
+                android:layout_margin="20dp"
+                android:textAlignment="center"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.02" />
+        </LinearLayout>
+
+        <!-- ─── MongoDB Vector Search Toggle ─── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/hud_glass_card_violet"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VECTOR SEARCH"
+                    android:textColor="@color/brand_primary"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:layout_marginBottom="2dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MongoDB Caching + Atlas Search"
+                    android:textColor="@color/on_surface"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switchMongoDb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                app:thumbTint="@color/neural_teal"
+                app:trackTint="@color/surface_container_high" />
+        </LinearLayout>
+
+        <!-- ─── View Default Commands ─── -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/commandsButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="VIEW DEFAULT VOICE COMMANDS"
+            android:background="@drawable/hud_button_primary"
+            android:textColor="@color/neural_teal"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.1"
+            android:textAllCaps="true"
+            android:elevation="4dp" />
+
+    </LinearLayout>
+</ScrollView>

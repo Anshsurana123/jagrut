@@ -9,17 +9,63 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Premium Dark UI Theme Palette -->
-    <color name="brand_primary">#FF7C3AED</color>
-    <color name="brand_secondary">#FF06B6D4</color>
-    <color name="surface_dark">#FF0F0F16</color>
-    <color name="card_dark">#D61E1A29</color>
-    <color name="card_dark_border">#33FFFFFF</color>
-    <color name="text_primary">#FFF8FAFC</color>
-    <color name="text_secondary">#FF94A3B8</color>
-    <color name="glow_purple">#4F7C3AED</color>
-    <color name="glow_cyan">#4F06B6D4</color>
-    <color name="alert_red">#FFEF4444</color>
-    <color name="green_accent">#FF10B981</color>
+    <!-- ============================================================ -->
+    <!-- JAGRUT Neural HUD Design System — Sentient AI Interface 2075 -->
+    <!-- ============================================================ -->
+
+    <!-- Backgrounds — Abyssal Black Void -->
+    <color name="bg_void">#050508</color>
+    <color name="surface_dark">#14121B</color>
+    <color name="surface_container">#201E28</color>
+    <color name="surface_container_high">#2B2932</color>
+    <color name="surface_bright">#3A3842</color>
+
+    <!-- Electric Violet — Primary Neural Pathway -->
+    <color name="brand_primary">#CABEFF</color>
+    <color name="electric_violet">#7B5EF6</color>
+    <color name="violet_dim">#947DFF</color>
+    <color name="violet_glow">#337B5EF6</color>
+    <color name="violet_border">#557B5EF6</color>
+    <color name="on_primary">#31009A</color>
+
+    <!-- Neural Teal — Data Visualization / Secondary -->
+    <color name="brand_secondary">#00E5CC</color>
+    <color name="neural_teal">#00DFC6</color>
+    <color name="teal_glow">#3300E5CC</color>
+    <color name="teal_border">#5500DFC6</color>
+    <color name="on_secondary">#003730</color>
+
+    <!-- Plasma White — Core Text / Iconography -->
+    <color name="text_primary">#F0F0FF</color>
+    <color name="text_secondary">#C9C4D7</color>
+    <color name="text_tertiary">#938EA0</color>
+    <color name="on_surface">#E6E0ED</color>
+    <color name="on_surface_variant">#C9C4D7</color>
+
+    <!-- Subtle Crimson — Critical Alerts Only -->
+    <color name="alert_red">#FF3355</color>
+    <color name="error_color">#FFB4AB</color>
+
+    <!-- Glass Card colors (semi-transparent) -->
+    <color name="card_dark">#1AFFFFFF</color>
+    <color name="card_dark_border">#2200DFC6</color>
+    <color name="glass_bg">#0DFFFFFF</color>
+    <color name="glass_border_teal">#3300DFC6</color>
+    <color name="glass_border_violet">#337B5EF6</color>
+
+    <!-- Glow effects -->
+    <color name="glow_purple">#337B5EF6</color>
+    <color name="glow_cyan">#3300E5CC</color>
+
+    <!-- Outline / Separator -->
+    <color name="outline">#938EA0</color>
+    <color name="outline_variant">#484555</color>
+
+    <!-- Component-specific -->
+    <color name="neural_chip_active">#2200E5CC</color>
+
+    <!-- Legacy aliases for components still referencing old names -->
+    <color name="brand_tertiary">#00DFC6</color>
+    <color name="green_accent">#00DFC6</color>
     <color name="amber_accent">#FFF59E0B</color>
 </resources>

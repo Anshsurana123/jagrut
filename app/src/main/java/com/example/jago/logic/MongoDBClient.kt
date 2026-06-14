@@ -23,6 +23,9 @@ object MongoDBClient {
     private const val TAG = "MongoDBClient"
     private val gson = Gson()
     
+    @Volatile
+    var isMongoDBEnabled: Boolean = true
+    
     private val mongoClientRef = AtomicReference<MongoClient?>(null)
 
     private fun getClient(): MongoClient? {
@@ -201,7 +204,7 @@ object MongoDBClient {
     }
 
     fun isConfigured(): Boolean {
-        return BuildConfig.MONGODB_CONNECTION_STRING.isNotBlank()
+        return isMongoDBEnabled && BuildConfig.MONGODB_CONNECTION_STRING.isNotBlank()
     }
 
     suspend fun insertMacro(voiceShortcut: String, steps: List<MacroStep>, embedding: List<Float>, template: String?): Boolean = withContext(Dispatchers.IO) {

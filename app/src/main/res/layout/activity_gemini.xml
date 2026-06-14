@@ -1,112 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    JAGRUT — Holographic Response Interface (Gemini Logs)
+    Design: jagrut_holographic_response Stitch screen
+    Glass chat bubbles + luminous borders + corner brackets
+    HUD input area at bottom (bottom-border only style)
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface_dark"
+    android:background="@color/bg_void"
     tools:context=".GeminiActivity">
 
-    <!-- Header / Title -->
-    <LinearLayout
-        android:id="@+id/headerLayout"
+    <!-- Holographic Background -->
+    <com.example.jago.ui.FuturisticBackgroundView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center_vertical"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_height="match_parent" />
 
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="✨ Gemini Execution Logs"
-            android:textColor="@color/text_primary"
-            android:textSize="22sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btnClearHistory"
-            style="?android:attr/buttonStyleSmall"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="CLEAR"
-            android:textSize="11sp"
-            android:backgroundTint="@color/alert_red"
-            android:textColor="@color/text_primary"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Subtitle/Description -->
-    <TextView
-        android:id="@+id/tvSubtitle"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="See real-time steps and compiled Android schemas returned by Gemini for advanced tasks."
-        android:textColor="@color/text_secondary"
-        android:textSize="12sp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="8dp"
-        app:layout_constraintTop_toBottomOf="@id/headerLayout"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:layout_height="match_parent">
 
-    <!-- RecyclerView for Logs -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewHistory"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        <!-- ─── Header: Neural Response Interface ─── -->
+        <LinearLayout
+            android:id="@+id/headerLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:gravity="center_vertical"
+            android:background="#1AFFFFFF"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-    <!-- Empty State -->
-    <LinearLayout
-        android:id="@+id/layoutEmptyState"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="24dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+            <!-- Neural Link Status indicator -->
+            <View
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/neural_status_orb"
+                android:layout_marginEnd="10dp" />
 
-        <TextView
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <com.example.jago.ui.GradientTextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="NEURAL RESPONSE LOG"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.08" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="GEMINI EXECUTION TRACE"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="10sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true" />
+            </LinearLayout>
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnClearHistory"
+                android:layout_width="72dp"
+                android:layout_height="36dp"
+                android:text="CLEAR"
+                android:textSize="10sp"
+                android:background="@drawable/hud_button_teal"
+                android:textColor="@color/alert_red"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true" />
+        </LinearLayout>
+
+        <!-- HUD separator below header -->
+        <View
+            android:id="@+id/headerSeparator"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@drawable/hud_separator"
+            app:layout_constraintTop_toBottomOf="@id/headerLayout"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- ─── Holographic Chat Log ─── -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewHistory"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="80dp"
+            android:scrollbars="none"
+            android:layoutAnimation="@anim/layout_fall_down"
+            app:layout_constraintTop_toBottomOf="@id/headerSeparator"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- ─── Empty State: Neural Standby ─── -->
+        <LinearLayout
+            android:id="@+id/layoutEmptyState"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🤖"
-            android:textSize="48sp"
-            android:layout_marginBottom="16dp" />
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="28dp"
+            android:background="@drawable/glass_card_premium"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="No executions logged yet"
-            android:textColor="@color/text_primary"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
+            <!-- Pulsing orb -->
+            <View
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/neural_status_orb"
+                android:layout_gravity="center"
+                android:layout_marginBottom="16dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Try asking advanced tasks like 'take a photo and send it to dad' to see Gemini in action!"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
-            android:textAlignment="center"
-            android:maxWidth="280dp" />
-    </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AWAITING NEURAL INPUT"
+                android:textColor="@color/neural_teal"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.1"
+                android:textAllCaps="true"
+                android:layout_marginBottom="8dp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Initiate an advanced command to see\nGemini neural pathways in action."
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textAlignment="center"
+                android:maxWidth="280dp" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

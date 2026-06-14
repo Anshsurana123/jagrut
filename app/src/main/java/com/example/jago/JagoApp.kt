@@ -2,11 +2,13 @@
 package com.example.jago
 
 import android.app.Application
+import android.content.Context
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import com.example.jago.logic.BhashiniClient
 import com.example.jago.logic.JagoTTS
+import com.example.jago.logic.MongoDBClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +24,10 @@ class JagoApp : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        
+        // Load MongoDB preference
+        val prefs = getSharedPreferences("JagoSettings", Context.MODE_PRIVATE)
+        MongoDBClient.isMongoDBEnabled = prefs.getBoolean("mongodb_enabled", true)
         
         // Initialize JagoTTS on main thread so TextToSpeech binds properly
         JagoTTS.init(this)

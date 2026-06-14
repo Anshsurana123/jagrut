@@ -1,94 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Required Notice: Copyright 2026 Ansh. (https://github.com/Anshsurana123/jago) -->
+<!--
+    Neural HUD: Holographic Response History Item
+    Design: jagrut_holographic_response — glass card AI response log
+    Required IDs: txtQuery, txtActionType, txtTimestamp, txtIntentDescription, txtPayloadDetails
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:layout_margin="8dp"
-    android:background="@drawable/glass_card">
+    android:layout_marginBottom="16dp">
 
-    <!-- Query and Action Type Header -->
+    <!-- Neural orb + response card row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="top">
 
-        <TextView
-            android:id="@+id/txtQuery"
+        <!-- Neural orb avatar indicator -->
+        <View
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:background="@drawable/neural_status_orb"
+            android:layout_marginEnd="12dp"
+            android:layout_marginTop="10dp" />
+
+        <!-- Glass holographic response card -->
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Query: take a photo"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary" />
+            android:background="@drawable/glass_card_premium"
+            android:orientation="vertical"
+            android:padding="14dp">
 
-        <TextView
-            android:id="@+id/txtActionType"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SHELL_COMMAND"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            android:textColor="@color/brand_secondary"
-            android:background="#2206B6D4"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
+            <!-- Top row: Timestamp + Action Type chip -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-    <!-- Time stamp and latency -->
-    <TextView
-        android:id="@+id/txtTimestamp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="June 13, 22:15"
-        android:textSize="11sp"
-        android:textColor="@color/text_secondary"
-        android:layout_marginTop="4dp" />
+                <!-- Action type badge -->
+                <TextView
+                    android:id="@+id/txtActionType"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ACTION"
+                    android:textColor="@color/neural_teal"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:background="@drawable/hud_glass_card_teal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:layout_marginEnd="8dp" />
 
-    <!-- Intent Description -->
-    <TextView
-        android:id="@+id/txtIntentDescription"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Intent: Clicking the shutter button to take a picture"
-        android:textSize="13sp"
-        android:textColor="@color/text_primary"
-        android:textStyle="italic"
-        android:layout_marginTop="8dp" />
+                <!-- Timestamp -->
+                <TextView
+                    android:id="@+id/txtTimestamp"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="00:00:00"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="10sp"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.04" />
 
-    <!-- Steps or Compiled Payload Details Container -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="8dp"
-        android:padding="8dp"
-        android:background="#11FFFFFF">
+            </LinearLayout>
 
-        <TextView
-            android:id="@+id/txtDetailsTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Execution Steps / Payload:"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_secondary"
-            android:layout_marginBottom="4dp" />
+            <!-- Query text -->
+            <TextView
+                android:id="@+id/txtQuery"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text='Query: "..."'
+                android:textColor="@color/on_surface"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="6dp" />
 
-        <TextView
-            android:id="@+id/txtPayloadDetails"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="No steps"
-            android:textSize="12sp"
-            android:textColor="@color/text_primary"
-            android:fontFamily="monospace" />
+            <!-- Teal separator -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@drawable/hud_separator"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Intent description -->
+            <TextView
+                android:id="@+id/txtIntentDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Intent loading..."
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:lineSpacingMultiplier="1.4"
+                android:layout_marginBottom="6dp" />
+
+            <!-- Payload details -->
+            <TextView
+                android:id="@+id/txtPayloadDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/neural_teal"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.04" />
+
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>
